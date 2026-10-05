@@ -1,0 +1,816 @@
+# Copyright (C) 2026 Loukas Tzekos
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Job Opportunities API for WP Job Manager 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/job-opportunities-api-for-wp-job-manager\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-05T18:24:31+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: job-opportunities-api-for-wp-job-manager\n"
+
+#. Plugin Name of the plugin
+#: job-opportunities-api-for-wp-job-manager.php
+#: includes/class-joawpjm-admin.php:186
+msgid "Job Opportunities API for WP Job Manager"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: job-opportunities-api-for-wp-job-manager.php
+msgid "https://jobopportunitiesapi.org/integrations/wordpress"
+msgstr ""
+
+#. Description of the plugin
+#: job-opportunities-api-for-wp-job-manager.php
+msgid "Imports employer-direct job postings from the Job Opportunities API (JOA) into WP Job Manager listings on a schedule."
+msgstr ""
+
+#. Author of the plugin
+#: job-opportunities-api-for-wp-job-manager.php
+msgid "Loukas Tzekos"
+msgstr ""
+
+#. Author URI of the plugin
+#: job-opportunities-api-for-wp-job-manager.php
+msgid "https://jobopportunitiesapi.org"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:50
+#: includes/class-joawpjm-admin.php:1017
+msgid "Job Opportunities API"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:52
+#: includes/class-joawpjm-admin.php:54
+msgid "JOA Import"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:76
+#: includes/class-joawpjm-admin.php:178
+msgid "Settings"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:102
+msgid "Job Opportunities API for WP Job Manager needs the WP Job Manager plugin. Install and activate WP Job Manager to import jobs."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:107
+msgid "Job Opportunities API: invalid key."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:108
+msgid "The API rejected the saved key, so imports are paused."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:110
+msgid "Update the key"
+msgstr ""
+
+#. translators: 1: enabled searches, 2: all searches.
+#: includes/class-joawpjm-admin.php:179
+#: includes/class-joawpjm-admin.php:327
+msgid "Saved searches"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:180
+msgid "Activity log"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:233
+msgid "Connection"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:236
+#: includes/class-joawpjm-admin.php:310
+msgid "API key"
+msgstr ""
+
+#. translators: %s: last four characters of the saved API key.
+#: includes/class-joawpjm-admin.php:240
+#, php-format
+msgid "A key ending in %s is saved. Leave the field empty to keep it."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:241
+msgid "Remove the saved key"
+msgstr ""
+
+#. translators: %s: link to the Job Opportunities API sign-up page.
+#: includes/class-joawpjm-admin.php:246
+#, php-format
+msgid "Get a free key (no card required) at %s."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:254
+#: includes/class-joawpjm-admin.php:342
+msgid "Import"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:257
+#: includes/class-joawpjm-admin.php:619
+msgid "Schedule"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:261
+msgid "Runs with WP-Cron, so it needs site traffic or a real cron job calling wp-cron.php."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:263
+msgid "Status of new listings"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:264
+msgid "Published"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:265
+msgid "Pending review"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:268
+msgid "Listing duration (days)"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:270
+msgid "Used when the API gives no expiry date for a role."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:272
+msgid "Descriptions"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:272
+msgid "Import the full advert text"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:273
+msgid "When off, listings show a short line linking to the employer’s advert."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:275
+msgid "Closure checks per run"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:277
+msgid "On plans without the closure feed, this many imported listings are re-checked each run (oldest check first) and expired when the employer closed the role."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:279
+msgid "Credit link"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:279
+msgid "Show a small “Jobs via Job Opportunities API” link under imported listings"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:280
+msgid "Optional and off by default. Roles whose data requires an attribution line always show it, whatever this setting."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:282
+msgid "Uninstall"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:282
+msgid "Delete imported listings when the plugin is uninstalled"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:285
+msgid "Save settings"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:290
+msgid "Test connection"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:293
+msgid "Run import now"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:297
+msgid "Recent activity"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:299
+msgid "Full activity log"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:311
+msgid "Not set"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:312
+msgid "Rejected by the API"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:312
+msgid "Saved"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:315
+msgid "Next scheduled import"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:315
+msgid "Not scheduled"
+msgstr ""
+
+#. translators: 1: enabled searches, 2: all searches.
+#: includes/class-joawpjm-admin.php:327
+#, php-format
+msgid "%1$d enabled of %2$d"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:329
+msgid "Closure tracking"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:330
+msgid "Per-listing checks (your plan has no closure feed)"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:331
+msgid "Closure feed when your plan includes it, otherwise per-listing checks"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:335
+msgid "Rate limit"
+msgstr ""
+
+#. translators: %s: date and time.
+#: includes/class-joawpjm-admin.php:337
+#, php-format
+msgid "Paused until %s"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:342
+msgid "Running now"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:385
+#: includes/class-joawpjm-admin.php:470
+#: includes/class-joawpjm-admin.php:551
+msgid "Add search"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:388
+msgid "No saved searches yet. Add one to start importing jobs."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:393
+#: includes/class-joawpjm-admin.php:626
+msgid "Search"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:393
+msgid "Filters"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:393
+#: includes/class-joawpjm-admin.php:1031
+msgid "Status"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:393
+#: includes/class-joawpjm-admin.php:501
+msgid "Max jobs per run"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:393
+msgid "Last successful run"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:393
+msgid "ID"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:418
+msgid "Edit"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:419
+msgid "Delete this saved search? Imported listings are kept."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:419
+msgid "Delete"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:421
+#: includes/class-joawpjm-admin.php:478
+msgid "Enabled"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:421
+msgid "Disabled"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:423
+msgid "Never"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:437
+#: includes/class-joawpjm-admin.php:481
+msgid "Keywords"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:438
+msgid "Title"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:439
+msgid "Description"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:440
+#: includes/class-joawpjm-admin.php:484
+msgid "Countries"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:441
+#: includes/class-joawpjm-admin.php:485
+msgid "City"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:442
+#: includes/class-joawpjm-admin.php:487
+msgid "Workplace"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:443
+#: includes/class-joawpjm-admin.php:493
+msgid "Employment type"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:444
+#: includes/class-joawpjm-admin.php:494
+msgid "Seniority"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:445
+#: includes/class-joawpjm-admin.php:495
+msgid "Category"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:446
+msgid "Companies"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:447
+#: includes/class-joawpjm-admin.php:497
+msgid "Company domains"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:457
+msgid "With salary"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:459
+msgid "All jobs"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:470
+msgid "Edit search"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:476
+msgid "Label"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:476
+msgid "For your own reference, for example “Remote engineering, Germany”."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:478
+msgid "Include in scheduled and manual imports"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:480
+msgid "Which jobs"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:481
+msgid "Matches job title, company name and location."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:482
+msgid "Title words"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:482
+msgid "Words that must appear in the job title. Comma-separate alternatives."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:483
+msgid "Description contains"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:483
+msgid "Words that must appear in the advert text."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:484
+msgid "Two-letter ISO codes, comma-separated, for example DE, AT, CH."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:493
+msgid "For example Full-time, Part-time, Contract, Internship."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:494
+msgid "For example Junior, Mid, Senior, Lead."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:495
+msgid "A JOA job category, for example Engineering."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:496
+msgid "Company slugs"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:496
+msgid "Comma-separated company slugs as used by the API."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:497
+msgid "Comma-separated bare domains, for example example.com."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:499
+msgid "Salary"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:499
+msgid "Only jobs that state a salary"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:502
+msgid "Each returned job counts towards your plan’s monthly record allowance. After the first run only recently posted jobs are requested."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:504
+msgid "How listings are created"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:506
+msgid "Job type"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:507
+#: includes/class-joawpjm-admin.php:524
+msgid "None"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:508
+msgid "Map from the employment type automatically"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:520
+msgid "Automatic mapping matches Full-time, Part-time, Contract, Temporary, Internship and Freelance to your existing job types by name."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:523
+msgid "Job category"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:539
+msgid "Listing author"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:551
+msgid "Save search"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:552
+msgid "Back to saved searches"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:583
+msgid "Any"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:584
+msgid "Remote"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:585
+msgid "Hybrid"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:586
+msgid "On-site"
+msgstr ""
+
+#. translators: %d: number of runs kept.
+#: includes/class-joawpjm-admin.php:598
+#, php-format
+msgid "The last %d runs, newest first. Each saved search and the closure checks get their own row."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:602
+msgid "Clear log"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:615
+msgid "No imports have run yet."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:620
+msgid "Manual"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:621
+msgid "WP-CLI"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:624
+msgid "Time"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:625
+msgid "Trigger"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:627
+msgid "Fetched"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:628
+msgid "Created"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:629
+msgid "Updated"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:630
+msgid "Unchanged"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:631
+msgid "Skipped"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:632
+msgid "Expired"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:633
+msgid "Errors and notes"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:683
+msgid "You are not allowed to do this."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:728
+msgid "Settings saved. The new API key is stored; use “Test connection” to check it."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:731
+msgid "Settings saved. The API key was removed."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:733
+msgid "Settings saved."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:759
+msgid "Connected to the Job Opportunities API."
+msgstr ""
+
+#. translators: %s: plan name.
+#: includes/class-joawpjm-admin.php:762
+#, php-format
+msgid "Plan: %s"
+msgstr ""
+
+#. translators: %s: key status.
+#: includes/class-joawpjm-admin.php:764
+#, php-format
+msgid "Key status: %s"
+msgstr ""
+
+#. translators: %d: maximum page size.
+#: includes/class-joawpjm-admin.php:766
+#, php-format
+msgid "Max page size: %d"
+msgstr ""
+
+#. translators: %s: requests used today.
+#: includes/class-joawpjm-admin.php:768
+#, php-format
+msgid "Usage today: %s"
+msgstr ""
+
+#. translators: 1: HTTP status code, 2: error message.
+#: includes/class-joawpjm-admin.php:776
+#, php-format
+msgid "Connection failed (HTTP %1$d): %2$s"
+msgstr ""
+
+#. translators: 1: jobs fetched, 2: listings created, 3: listings updated, 4: listings expired.
+#: includes/class-joawpjm-admin.php:826
+#, php-format
+msgid "Import finished: %1$d fetched, %2$d created, %3$d updated, %4$d expired."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:833
+msgid "Nothing to import: add and enable a saved search first."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:876
+msgid "Search saved."
+msgstr ""
+
+#. translators: %s: rejected values.
+#: includes/class-joawpjm-admin.php:923
+#, php-format
+msgid "Ignored invalid country codes (use two-letter ISO codes): %s"
+msgstr ""
+
+#. translators: %s: rejected values.
+#: includes/class-joawpjm-admin.php:945
+#, php-format
+msgid "Ignored invalid company domains: %s"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:987
+msgid "Search deleted. Listings it imported are kept."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1001
+msgid "Activity log cleared."
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1029
+msgid "JOA id"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1030
+msgid "Source"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1032
+msgid "Last seen"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1036
+msgid "Attribution"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1043
+msgid "Lock: keep my edits (do not update from the API)"
+msgstr ""
+
+#: includes/class-joawpjm-admin.php:1044
+msgid "A locked listing still expires when the employer closes the role."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:128
+#: includes/class-joawpjm-importer.php:124
+msgid "No API key is saved."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:167
+msgid "The API returned a response that is not valid JSON."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:215
+msgid "The API key is missing, unknown, revoked or expired."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:217
+msgid "The monthly record allowance of this API key is used up."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:219
+msgid "Your plan does not include this endpoint."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:221
+msgid "Not found."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:223
+msgid "Rate limit reached."
+msgstr ""
+
+#: includes/class-joawpjm-api.php:226
+msgid "The API is temporarily unavailable."
+msgstr ""
+
+#. translators: %d: HTTP status code.
+#: includes/class-joawpjm-api.php:229
+#, php-format
+msgid "Unexpected HTTP status %d."
+msgstr ""
+
+#. translators: %s: attribution supplied with the job data, for example "via Erioun for Teams".
+#: includes/class-joawpjm-frontend.php:47
+#, php-format
+msgid "Listed %s"
+msgstr ""
+
+#: includes/class-joawpjm-frontend.php:53
+msgid "Jobs via Job Opportunities API"
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:122
+msgid "WP Job Manager is not active."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:126
+msgid "The saved API key was rejected. Save a valid key to resume imports."
+msgstr ""
+
+#. translators: %d: number of seconds.
+#: includes/class-joawpjm-importer.php:131
+#, php-format
+msgid "The API asked to slow down. Imports resume in %d seconds."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:137
+msgid "No saved search has that id."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:148
+msgid "Another import is already running. Try again in a few minutes."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:224
+msgid "Connection check"
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:225
+msgid "Key check"
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:295
+#: includes/class-joawpjm-importer.php:778
+msgid "Time budget reached; the next run continues."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:305
+msgid "Job search"
+msgstr ""
+
+#. translators: %s: JOA job id.
+#: includes/class-joawpjm-importer.php:384
+#, php-format
+msgid "Could not save job %s."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:607
+msgid "The full advert for this role is on the employer’s own website."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:609
+msgid "Read the advert and apply"
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:749
+msgid "Closure checks"
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:786
+msgid "Closure feed"
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:874
+msgid "Closure check"
+msgstr ""
+
+#. translators: 1: what was being done, 2: HTTP status code, 3: error message.
+#: includes/class-joawpjm-importer.php:956
+#, php-format
+msgid "%1$s failed (HTTP %2$d): %3$s"
+msgstr ""
+
+#. translators: %d: number of seconds.
+#: includes/class-joawpjm-importer.php:963
+#, php-format
+msgid "Paused for %d seconds."
+msgstr ""
+
+#: includes/class-joawpjm-importer.php:966
+msgid "Run stopped."
+msgstr ""
+
+#: includes/class-joawpjm-settings.php:90
+msgid "Hourly"
+msgstr ""
+
+#: includes/class-joawpjm-settings.php:91
+msgid "Twice daily"
+msgstr ""
+
+#: includes/class-joawpjm-settings.php:92
+msgid "Daily"
+msgstr ""

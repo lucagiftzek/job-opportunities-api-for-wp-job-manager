@@ -1,0 +1,73 @@
+# Local test environment for "Job Opportunities API for WP Job Manager".
+# Everything is published on 127.0.0.1 only. Credentials below are throwaway
+# values for a disposable local database, not secrets.
+name: joawp
+
+x-wp-env: &wp-env
+  WORDPRESS_DB_HOST: db
+  WORDPRESS_DB_USER: wp
+  WORDPRESS_DB_PASSWORD: wp-local-only
+  WORDPRESS_DB_NAME: wordpress
+  WORDPRESS_CONFIG_EXTRA: |
+    /* Absolute path on purpose: WP-CLI evaluates wp-config.php, so __DIR__ is not reliable there. */
+    /* Tests point the plugin at the mock API by writing this file; the live smoke test removes it. */
+    if ( file_exists( '/var/www/html/wp-content/joawpjm-test-api-base.txt' ) ) { define( 'JOAWPJM_API_BASE', trim( file_get_contents( '/var/www/html/wp-content/joawpjm-test-api-base.txt' ) ) ); }
+    /* Imports are triggered explicitly by the tests (wp cron event run), not by page views. */
+    define( 'DISABLE_WP_CRON', true );
+
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: wp-local-only
+      MARIADB_ROOT_PASSWORD: root-local-only
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+    mem_limit: 512m
+
+  wordpress:
+    image: wordpress:php8.3-apache
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8088:80"
+    environment: *wp-env
+    volumes:
+      - wp:/var/www/html
+      - ./job-opportunities-api-for-wp-job-manager:/var/www/html/wp-content/plugins/job-opportunities-api-for-wp-job-manager
+    mem_limit: 512m
+
+  cli:
+    image: wordpress:cli-php8.3
+    user: "33:33"
+    depends_on:
+      - wordpress
+    environment:
+      <<: *wp-env
+      HOME: /tmp
+    volumes:
+      - wp:/var/www/html
+      - ./job-opportunities-api-for-wp-job-manager:/var/www/html/wp-content/plugins/job-opportunities-api-for-wp-job-manager
+      - ./tests:/tests:ro
+    command: ["sleep", "infinity"]
+    mem_limit: 512m
+
+  mock:
+    image: php:8.3-cli
+    user: "1000:1000"
+    working_dir: /mock
+    command: ["php", "-S", "0.0.0.0:8000", "/mock/router.php"]
+    volumes:
+      - ./tests/mock:/mock
+    mem_limit: 128m
+
+volumes:
+  db:
+  wp:
