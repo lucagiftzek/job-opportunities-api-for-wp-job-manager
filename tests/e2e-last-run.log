@@ -1,0 +1,178 @@
+== setup
+  PASS  API base points at the mock
+== 1. first import creates listings with the right meta
+  PASS  cli import succeeds
+  PASS  5 listings created
+  PASS  5 imported listings exist
+  PASS  paged with plan max_page_size (3): 2 job requests
+  PASS  page size clamped to max_page_size
+  PASS  second page uses cursor
+  PASS  user agent JOA-WPJM/<version>
+  PASS  descriptions requested
+  PASS  first run sends no posted_after
+  PASS  title
+  PASS  post status publish (default)
+  PASS  post_date = posted_at
+  PASS  author from the saved search
+  PASS  _job_location
+  PASS  _application = employer apply_url
+  PASS  _company_name
+  PASS  _company_website
+  PASS  _remote_position (remote)
+  PASS  _remote_position (hybrid)
+  PASS  _job_expires = post date + 30 days
+  PASS  _job_expires from expires_at
+  PASS  _filled 0
+  PASS  _featured 0
+  PASS  _job_salary range
+  PASS  _job_salary_currency
+  PASS  _job_salary_unit YEAR
+  PASS  _job_salary_unit HOUR
+  PASS  inferred salary not imported
+  PASS  _joawpjm_id
+  PASS  _joawpjm_slug
+  PASS  _joawpjm_source
+  PASS  _joawpjm_source_type
+  PASS  _joawpjm_search
+  PASS  _joawpjm_status
+  PASS  _joawpjm_apply_hash set
+  PASS  _joawpjm_company_logo stored as URL only
+  PASS  no image sideloaded
+  PASS  no media attachments created
+  PASS  description converted to paragraphs
+  PASS  HTML in plain text is escaped
+  PASS  no raw script tag
+  PASS  no-description fallback line with apply link
+  PASS  job type mapped: Full-time -> Full Time
+  PASS  job type mapped: Internship
+  PASS  job type: Contract has no matching term
+  PASS  attribution row: _application = canonical_url
+  PASS  attribution stored
+  PASS  canonical stored
+  PASS  closure feed polled after import
+== 2. second import creates no duplicates and is incremental
+  PASS  0 created on re-import
+  PASS  5 unchanged
+  PASS  still 5 listings
+  PASS  posted_after = last run - 1 day
+  PASS  /v1/me cached (not called again)
+== 3. changed title updates the listing
+  PASS  1 updated
+  PASS  title updated
+  PASS  post date unchanged on update
+== 4. a second search returning the same apply_url does not duplicate
+  PASS  duplicate skipped
+  PASS  nothing created
+  PASS  still 5 listings
+  PASS  no post for the duplicate id
+  PASS  --search run skips closure checks
+  PASS  q filter sent
+== 5. dry run writes nothing
+  PASS  dry run reports
+  PASS  no listing created
+  PASS  log untouched
+  PASS  real run creates J6
+  PASS  Temporary mapped
+== 6. admin lock stops updates; closure feed still expires
+  PASS  locked listing title kept
+  PASS  locked counted as skipped
+  PASS  feed expired 2
+  PASS  locked listing expired anyway
+  PASS  _joawpjm_status closed
+  PASS  J3 expired via feed
+  PASS  feed cursor stored
+  PASS  feed started from first import time
+  PASS  next poll uses next_since
+  PASS  nothing more expired
+== 7. per-listing checks when the plan has no feed (403)
+  PASS  403 remembered for 24h
+  PASS  J2 closed -> expired
+  PASS  J2 reason
+  PASS  J4 404 -> expired
+  PASS  J5 410 -> expired
+  PASS  J6 still live
+  PASS  3 expired by checks
+  PASS  per-id check uses include_closed
+  PASS  feed not retried while 403 is remembered
+== 8. a closed role that comes back live is re-listed
+  PASS  J3 republished
+  PASS  J3 status live
+  PASS  closure checks capped by setting (1 of 2 live)
+== 9. 429 stops the run cleanly and pauses
+  PASS  429 reported
+  PASS  run stopped
+  PASS  only one jobs request (no retry, second search not run)
+  PASS  no closure work after 429
+  PASS  Retry-After stored
+  PASS  next run waits for Retry-After
+  PASS  no request while paused
+== 10. 5xx stops and is logged
+  PASS  503 logged
+== 11. 401 shows the invalid-key notice and stops
+  PASS  401 logged
+  PASS  key flagged invalid
+  PASS  no job requests after 401
+  PASS  later runs refuse until the key is fixed
+  PASS  admin notice: invalid key
+  PASS  saving a key clears the flag
+  PASS  notice gone
+== 12. overlapping runs: lock
+  PASS  second run refused while locked
+  PASS  stale lock (>15 min) is taken over
+  PASS  lock released after run
+== 13. WP-Cron path
+  PASS  recurring event scheduled
+  PASS  default schedule twicedaily
+  PASS  cron run logged
+== 14. search validation
+  PASS  countries normalised
+  PASS  invalid countries reported
+  PASS  company slugs
+  PASS  domains normalised
+  PASS  invalid domain reported
+  PASS  remote falls back to any
+  PASS  max per run clamped to 500
+  PASS  empty label gets a summary
+== 15. admin pages: key masked, forms protected
+  PASS  settings page renders
+  PASS  key shown as last 4 only
+  PASS  full key never in HTML
+  PASS  key field is an empty password field
+  PASS  searches tab
+  PASS  log tab
+  PASS  search editor
+  PASS  admin-post without nonce rejected
+  PASS  admin-post logged out rejected
+  PASS  empty key submit keeps the key
+  PASS  schedule saved
+  PASS  rescheduled hourly
+  PASS  duration saved
+  PASS  api key option not autoloaded
+  PASS  searches option not autoloaded
+  PASS  Run import now works
+  PASS  result shown after redirect
+  PASS  test connection shows plan
+  PASS  test connection shows max page size
+  PASS  test connection shows usage
+== 16. front end: attribution and optional credit
+  PASS  attribution line shown
+  PASS  apply goes to canonical_url
+  PASS  credit link off by default
+  PASS  credit link when opted in
+  PASS  no attribution line on normal rows
+== 17. WP Job Manager inactive: graceful
+  PASS  WPJM deactivated
+  PASS  our plugin still active, no fatal
+  PASS  import refuses cleanly
+  PASS  admin notice when WPJM inactive
+  PASS  settings page moves under Settings
+== 18. uninstall
+  PASS  settings removed
+  PASS  key removed
+  PASS  log removed
+  PASS  cron removed
+  PASS  listings kept when the option is off
+  PASS  listings deleted when the option is on
+  PASS  no plugin options or transients left
+
+RESULT: 157 passed, 0 failed

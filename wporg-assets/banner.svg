@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 772 250" width="772" height="250" role="img" aria-label="Job Opportunities API for WP Job Manager">
+<title>Job Opportunities API for WP Job Manager</title>
+<rect width="772" height="250" fill="#f3e8d0"/>
+<rect x="10" y="10" width="752" height="230" fill="none" stroke="#c9b98a" stroke-width="1.5"/>
+<g transform="translate(52 57) scale(2.1)"><rect x="2" y="2" width="60" height="60" fill="#fffdf7" stroke="#14161A" stroke-width="3.2"/><path d="M16 14h20l12 12v26H16Z" fill="#fffdf7" stroke="#14161A" stroke-width="3.2" stroke-linejoin="round"/><path d="M36 14v12h12" fill="none" stroke="#123A6B" stroke-width="3.2" stroke-linejoin="round"/><rect x="22" y="34" width="20" height="3.2" fill="#14161A"/><rect x="22" y="41" width="20" height="3.2" fill="#14161A"/><rect x="22" y="48" width="12" height="3.2" fill="#14161A"/></g>
+<text x="230" y="104" font-family="'Source Serif 4', Georgia, 'DejaVu Serif', serif" font-weight="700" font-size="40" fill="#1c2b47">Job Opportunities API</text>
+<text x="230" y="148" font-family="'Source Serif 4', Georgia, 'DejaVu Serif', serif" font-weight="700" font-size="30" fill="#1c2b47">for WP Job Manager</text>
+<rect x="230" y="166" width="64" height="4" fill="#b8873a"/>
+<text x="230" y="198" font-family="'Work Sans', 'DejaVu Sans', Arial, sans-serif" font-size="17" fill="#7a5f2e">Employer-direct jobs, imported into your job board on a schedule</text>
+</svg>
