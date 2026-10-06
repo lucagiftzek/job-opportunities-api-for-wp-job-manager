@@ -154,12 +154,81 @@
   PASS  test connection shows plan
   PASS  test connection shows max page size
   PASS  test connection shows usage
-== 16. front end: attribution and optional credit
+== 16. front end: attribution line and the opt-in credit (undecided by default)
   PASS  attribution line shown
   PASS  apply goes to canonical_url
-  PASS  credit link off by default
-  PASS  credit link when opted in
+  PASS  default credit setting is undecided
+  PASS  undecided: no credit on the front end
+  PASS  undecided: no 'Data:' credit text
+  PASS  old credit text gone
+  PASS  undecided: notice on the plugin screen
+  PASS  notice has 'Show the credit'
+  PASS  notice has 'Not now'
+  PASS  notice links to the setting
+  PASS  notice on the job_listing list
+  PASS  notice on a job_listing edit screen
+  PASS  no notice on the Dashboard
+  PASS  no notice on the Plugins screen
+  PASS  no notice on Posts
+  PASS  settings: credit box near the top
+  PASS  settings: exact checkbox label
+  PASS  settings: explanation
+  PASS  settings: box unticked while undecided
+  PASS  credit box comes before the Connection section
+  PASS  nonce-less 'Show the credit' rejected
+  PASS  nonce-less 'Not now' rejected
+  PASS  bad nonce rejected
+  PASS  logged-out decision rejected
+  PASS  still undecided after rejected posts
+  PASS  editor can open the job_listing list
+  PASS  editor (no manage_options) sees no notice
+  PASS  editor gets no decision form
+  PASS  editor admin-post rejected
+== 16b. 'Show the credit' button
+  PASS  decision recorded: on
+  PASS  redirects back to the screen it was clicked on
+  PASS  confirmation shown after redirect
+  PASS  notice gone on the job_listing list
+  PASS  notice gone on the plugin screen
+  PASS  settings: box ticked
+  PASS  credit HTML with the right link
+  PASS  Erioun attribution still shown with the credit
+  PASS  credit on normal imported rows too
   PASS  no attribution line on normal rows
+  PASS  no credit on listings not imported from JOA
+== 16c. 'Not now' button
+  PASS  notice back while undecided
+  PASS  decision recorded: off
+  PASS  no notice after 'Not now' (plugin screen)
+  PASS  confirmation after 'Not now'
+  PASS  no notice after 'Not now' (job_listing list)
+  PASS  no credit on the front end after 'Not now'
+  PASS  settings: box unticked after 'Not now'
+== 16d. settings form: tick / untick
+  PASS  tick + save: on
+  PASS  tick: credit on the front end
+  PASS  tick: checkbox shown ticked
+  PASS  untick + save: off
+  PASS  untick: no credit on the front end
+  PASS  saving unticked while undecided records 'off'
+  PASS  no notice once decided via the form
+  PASS  other settings untouched by the credit
+== 16e. migration from 1.0.0 settings
+  PASS  old attribution=1 reads as on
+  PASS  old attribution=1: credit shown without any admin visit
+  PASS  migrated 'on': no notice
+  PASS  migration persisted on admin load: credit on
+  PASS  migration persisted: old key dropped
+  PASS  old attribution=0 reads as undecided
+  PASS  old attribution=0: no credit
+  PASS  old attribution=0: notice shown
+  PASS  attribution=0 persisted as undecided
+  PASS  attribution=0: old key dropped
+  PASS  old settings without the key read as undecided
+  PASS  old attribution='1' (string) reads as on
+  PASS  invalid stored value falls back to undecided
+  PASS  a recorded decision wins over a stale old key
+  PASS  migrated option stays non-autoloaded
 == 17. WP Job Manager inactive: graceful
   PASS  WPJM deactivated
   PASS  our plugin still active, no fatal
@@ -172,7 +241,8 @@
   PASS  log removed
   PASS  cron removed
   PASS  listings kept when the option is off
+  PASS  fresh activation: credit undecided
   PASS  listings deleted when the option is on
   PASS  no plugin options or transients left
 
-RESULT: 157 passed, 0 failed
+RESULT: 223 passed, 0 failed

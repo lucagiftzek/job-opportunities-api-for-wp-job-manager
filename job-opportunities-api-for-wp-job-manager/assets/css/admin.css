@@ -9,4 +9,6 @@
 .joawpjm-wrap .joawpjm-error { color: #b32d2e; }
 .joawpjm-wrap .joawpjm-note { color: #646970; }
 .joawpjm-wrap .joawpjm-details { list-style: disc; margin: 0 0 8px 20px; }
+.joawpjm-wrap .joawpjm-credit-box { max-width: 760px; margin: 16px 0 8px; padding: 4px 16px; background: #fff; border: 1px solid #c3c4c7; border-left: 4px solid #b8873a; box-shadow: 0 1px 1px rgba(0, 0, 0, .04); }
+.joawpjm-wrap .joawpjm-credit-box .description { margin: 0 0 12px 24px; }
 .joawpjm-meta { margin: 0; }

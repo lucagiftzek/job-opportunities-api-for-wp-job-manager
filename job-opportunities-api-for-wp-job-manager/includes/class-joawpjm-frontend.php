@@ -1,6 +1,6 @@
 <?php
 /**
- * Front-end output: attribution lines on imported listings.
+ * Front-end output: attribution and credit lines on imported listings.
  *
  * @package JOAWPJM
  */
@@ -24,7 +24,7 @@ class JOAWPJM_Frontend {
 
 	/**
 	 * Appends the data attribution (always, when the role carries one) and the
-	 * optional plugin credit (only when the site owner switched it on).
+	 * "Data: Job Opportunities API" credit (only when the site owner switched it on).
 	 *
 	 * @param string $description Description HTML.
 	 * @return string
@@ -49,8 +49,12 @@ class JOAWPJM_Frontend {
 			$description .= '<p class="joawpjm-attribution"><small>' . esc_html( $text ) . '</small></p>';
 		}
 
-		if ( JOAWPJM_Settings::get( 'attribution' ) ) {
-			$description .= '<p class="joawpjm-credit"><small><a href="https://jobopportunitiesapi.org">' . esc_html__( 'Jobs via Job Opportunities API', 'job-opportunities-api-for-wp-job-manager' ) . '</a></small></p>';
+		if ( JOAWPJM_Settings::CREDIT_ON === JOAWPJM_Settings::credit() ) {
+			$description .= '<p class="joawpjm-credit"><small>' . sprintf(
+				/* translators: %s: link to the Job Opportunities API website, with the text "Job Opportunities API". */
+				esc_html__( 'Data: %s', 'job-opportunities-api-for-wp-job-manager' ),
+				'<a href="' . esc_url( 'https://jobopportunitiesapi.org' ) . '">' . esc_html__( 'Job Opportunities API', 'job-opportunities-api-for-wp-job-manager' ) . '</a>'
+			) . '</small></p>';
 		}
 		return $description;
 	}

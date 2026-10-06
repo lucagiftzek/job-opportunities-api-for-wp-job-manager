@@ -33,6 +33,11 @@ login() {
 }
 page() { curl -s -b "$JAR" "$SITE/wp-admin/edit.php?post_type=job_listing&page=joawpjm$1"; }
 nonce_for() { python3 -c 'import re,sys; m=re.search(r"value=\"joawpjm_'"$1"'\"><input type=\"hidden\" id=\"_wpnonce\" name=\"_wpnonce\" value=\"([a-f0-9]+)\"", sys.stdin.read()); print(m.group(1) if m else "")'; }
+credit_nonce() { python3 -c 'import re,sys; t=sys.stdin.read(); i=t.find("joawpjm-credit-notice"); m=re.search(r"name=\"_wpnonce\" value=\"([a-f0-9]+)\"", t[i:]) if i>=0 else None; print(m.group(1) if m else "")'; }
+credit() { php 'echo JOAWPJM_Settings::credit();'; }
+LIST_URL="$SITE/wp-admin/edit.php?post_type=job_listing"
+NOTICE="Job Opportunities API: show the data credit?"
+CREDIT_HTML='<p class="joawpjm-credit"><small>Data: <a href="https://jobopportunitiesapi.org">Job Opportunities API</a></small></p>'
 recurrence() { wp cron event list --hook=joawpjm_cron_import --fields=recurrence --format=csv | tail -1 | tr -d '\r"'; }
 
 J1=00000000-0000-4000-8000-000000000001
@@ -61,7 +66,7 @@ eq "5 imported listings exist" "5" "$(h count)"
 eq "paged with plan max_page_size (3): 2 job requests" "2" "$(reqs /v1/jobs)"
 has "page size clamped to max_page_size" '"limit":"3"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
 has "second page uses cursor" '"cursor":"3"' "$(cat $STATE/requests.log)"
-has "user agent JOA-WPJM/<version>" '"ua":"JOA-WPJM/1.0.0"' "$(cat $STATE/requests.log)"
+has "user agent JOA-WPJM/<version>" '"ua":"JOA-WPJM/1.0.1"' "$(cat $STATE/requests.log)"
 has "descriptions requested" '"include_description":"true"' "$(cat $STATE/requests.log)"
 hasnt "first run sends no posted_after" 'posted_after' "$(cat $STATE/requests.log)"
 P1=$(h pid $J1); P2=$(h pid $J2); P3=$(h pid $J3); P4=$(h pid $J4); P5=$(h pid $J5)
@@ -289,19 +294,140 @@ has "test connection shows max page size" "Max page size: 3" "$TCH"
 has "test connection shows usage" "Usage today: 7" "$TCH"
 h set schedule twicedaily >/dev/null; h set post_status publish >/dev/null; h set duration 30 >/dev/null
 
-echo "== 16. front end: attribution and optional credit"
+echo "== 16. front end: attribution line and the opt-in credit (undecided by default)"
 scen --jobs default=J5 --feed 1
 wp post update $P5 --post_status=publish >/dev/null
+h set credit undecided >/dev/null
 URL5=$(php "echo get_permalink($P5);")
+URL6=$(php "echo get_permalink($P6);")
 F5=$(curl -s "$URL5")
 has "attribution line shown" "Listed via Erioun for Teams" "$F5"
 has "apply goes to canonical_url" "https://erioun.example/roles/5" "$F5"
-hasnt "credit link off by default" "Jobs via Job Opportunities API" "$F5"
-h set attribution 1 >/dev/null
-has "credit link when opted in" "Jobs via Job Opportunities API" "$(curl -s "$URL5")"
-h set attribution 0 >/dev/null
-URL6=$(php "echo get_permalink($P6);")
+eq "default credit setting is undecided" "undecided" "$(php 'echo JOAWPJM_Settings::defaults()["credit"];')"
+hasnt "undecided: no credit on the front end" "joawpjm-credit" "$F5"
+hasnt "undecided: no 'Data:' credit text" "Data: <a" "$F5"
+hasnt "old credit text gone" "Jobs via Job Opportunities API" "$F5"
+login
+PG=$(page "")
+has "undecided: notice on the plugin screen" "$NOTICE" "$PG"
+has "notice has 'Show the credit'" ">Show the credit</button>" "$PG"
+has "notice has 'Not now'" ">Not now</button>" "$PG"
+has "notice links to the setting" 'page=joawpjm#joawpjm-credit' "$PG"
+has "notice on the job_listing list" "$NOTICE" "$(curl -s -b "$JAR" "$LIST_URL")"
+has "notice on a job_listing edit screen" "$NOTICE" "$(curl -s -b "$JAR" "$SITE/wp-admin/post.php?post=$P5&action=edit")"
+hasnt "no notice on the Dashboard" "$NOTICE" "$(curl -s -b "$JAR" "$SITE/wp-admin/index.php")"
+hasnt "no notice on the Plugins screen" "$NOTICE" "$(curl -s -b "$JAR" "$SITE/wp-admin/plugins.php")"
+hasnt "no notice on Posts" "$NOTICE" "$(curl -s -b "$JAR" "$SITE/wp-admin/edit.php")"
+has "settings: credit box near the top" 'class="joawpjm-credit-box" id="joawpjm-credit"' "$PG"
+has "settings: exact checkbox label" 'Show &quot;Data: Job Opportunities API&quot; credit (required by the JOA terms for public display)' "$PG"
+has "settings: explanation" "it stays off until you tick it, and the JOA terms ask for it when you display listings publicly." "$PG"
+hasnt "settings: box unticked while undecided" "name=\"joawpjm[credit]\" value=\"1\" checked" "$PG"
+BOXPOS=$(python3 -c 'import sys; t=sys.stdin.read(); print("ok" if 0 <= t.find("joawpjm-credit-box") < t.find(">Connection</h2>") else "bad")' <<<"$PG")
+eq "credit box comes before the Connection section" "ok" "$BOXPOS"
+eq "nonce-less 'Show the credit' rejected" "403" "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d 'action=joawpjm_credit_on' "$SITE/wp-admin/admin-post.php")"
+eq "nonce-less 'Not now' rejected" "403" "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d 'action=joawpjm_credit_off' "$SITE/wp-admin/admin-post.php")"
+eq "bad nonce rejected" "403" "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d 'action=joawpjm_credit_on&_wpnonce=0123456789' "$SITE/wp-admin/admin-post.php")"
+CN=$(credit_nonce <<<"$PG")
+eq "logged-out decision rejected" "403" "$(curl -s -o /dev/null -w '%{http_code}' -d "action=joawpjm_credit_on&_wpnonce=$CN" "$SITE/wp-admin/admin-post.php" | sed 's/^302$/403/;s/^400$/403/')"
+eq "still undecided after rejected posts" "undecided" "$(credit)"
+# Low-privilege user: never sees the notice and cannot decide.
+wp user create joaeditor joaeditor@example.com --role=editor --user_pass=joawp-editor-test >/dev/null 2>&1 || wp user update joaeditor --user_pass=joawp-editor-test >/dev/null
+# WP Job Manager grants listing capabilities to administrators only; give this user listing access, not manage_options.
+wp user add-cap joaeditor edit_job_listings >/dev/null; wp user add-cap joaeditor edit_others_job_listings >/dev/null
+EJAR=$(mktemp)
+curl -s -c "$EJAR" -b "$EJAR" -o /dev/null "$SITE/wp-login.php"
+curl -s -c "$EJAR" -b "$EJAR" -o /dev/null -d "log=joaeditor&pwd=joawp-editor-test&testcookie=1&wp-submit=Log+In&redirect_to=$SITE/wp-admin/" "$SITE/wp-login.php"
+EL=$(curl -s -b "$EJAR" -w '\n%{http_code}' "$LIST_URL")
+eq "editor can open the job_listing list" "200" "$(tail -1 <<<"$EL")"
+hasnt "editor (no manage_options) sees no notice" "$NOTICE" "$EL"
+EN=$(curl -s -b "$EJAR" "$LIST_URL" | credit_nonce)
+eq "editor gets no decision form" "" "$EN"
+eq "editor admin-post rejected" "403" "$(curl -s -o /dev/null -w '%{http_code}' -b "$EJAR" -d 'action=joawpjm_credit_on' "$SITE/wp-admin/admin-post.php")"
+rm -f "$EJAR"
+wp user delete joaeditor --yes >/dev/null
+
+echo "== 16b. 'Show the credit' button"
+LP=$(curl -s -b "$JAR" "$LIST_URL")
+CN=$(credit_nonce <<<"$LP")
+LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" --data-urlencode "action=joawpjm_credit_on" --data-urlencode "_wpnonce=$CN" \
+  --data-urlencode "_wp_http_referer=/wp-admin/edit.php?post_type=job_listing" "$SITE/wp-admin/admin-post.php")
+eq "decision recorded: on" "on" "$(credit)"
+eq "redirects back to the screen it was clicked on" "$LIST_URL" "$LOC"
+LP=$(curl -s -b "$JAR" "$LIST_URL")
+has "confirmation shown after redirect" "credit is now shown on imported listings" "$LP"
+hasnt "notice gone on the job_listing list" "$NOTICE" "$LP"
+hasnt "notice gone on the plugin screen" "$NOTICE" "$(page "")"
+has "settings: box ticked" "name=\"joawpjm[credit]\" value=\"1\" checked" "$(page "")"
+F5=$(curl -s "$URL5")
+has "credit HTML with the right link" "$CREDIT_HTML" "$F5"
+has "Erioun attribution still shown with the credit" "Listed via Erioun for Teams" "$F5"
+has "credit on normal imported rows too" "$CREDIT_HTML" "$(curl -s "$URL6")"
 hasnt "no attribution line on normal rows" "joawpjm-attribution" "$(curl -s "$URL6")"
+NP=$(php '$p = wp_insert_post( array( "post_type" => "job_listing", "post_status" => "publish", "post_title" => "Own listing", "post_content" => "Written by hand." ) ); echo $p;')
+hasnt "no credit on listings not imported from JOA" "joawpjm-credit" "$(curl -s "$(php "echo get_permalink($NP);")")"
+wp post delete "$NP" --force >/dev/null
+
+echo "== 16c. 'Not now' button"
+h set credit undecided >/dev/null
+PG=$(page "")
+has "notice back while undecided" "$NOTICE" "$PG"
+CN=$(credit_nonce <<<"$PG")
+curl -s -o /dev/null -b "$JAR" --data-urlencode "action=joawpjm_credit_off" --data-urlencode "_wpnonce=$CN" \
+  --data-urlencode "_wp_http_referer=/wp-admin/edit.php?post_type=job_listing&page=joawpjm" "$SITE/wp-admin/admin-post.php"
+eq "decision recorded: off" "off" "$(credit)"
+PG=$(page "")
+hasnt "no notice after 'Not now' (plugin screen)" "$NOTICE" "$PG"
+has "confirmation after 'Not now'" "The credit stays off." "$PG"
+hasnt "no notice after 'Not now' (job_listing list)" "$NOTICE" "$(curl -s -b "$JAR" "$LIST_URL")"
+hasnt "no credit on the front end after 'Not now'" "joawpjm-credit" "$(curl -s "$URL5")"
+hasnt "settings: box unticked after 'Not now'" "name=\"joawpjm[credit]\" value=\"1\" checked" "$PG"
+
+echo "== 16d. settings form: tick / untick"
+save_settings() { # $1 = extra form field or ""
+  local N; N=$(nonce_for save_settings <<<"$(page "")")
+  curl -s -o /dev/null -b "$JAR" --data-urlencode "action=joawpjm_save_settings" --data-urlencode "_wpnonce=$N" --data-urlencode "joawpjm_api_key=" \
+    --data-urlencode "joawpjm[schedule]=twicedaily" --data-urlencode "joawpjm[post_status]=publish" --data-urlencode "joawpjm[duration]=30" \
+    --data-urlencode "joawpjm[keep_descriptions]=1" --data-urlencode "joawpjm[closure_checks]=25" ${1:+--data-urlencode "$1"} "$SITE/wp-admin/admin-post.php"
+}
+save_settings "joawpjm[credit]=1"
+eq "tick + save: on" "on" "$(credit)"
+has "tick: credit on the front end" "$CREDIT_HTML" "$(curl -s "$URL5")"
+has "tick: checkbox shown ticked" "name=\"joawpjm[credit]\" value=\"1\" checked" "$(page "")"
+save_settings ""
+eq "untick + save: off" "off" "$(credit)"
+hasnt "untick: no credit on the front end" "joawpjm-credit" "$(curl -s "$URL5")"
+h set credit undecided >/dev/null
+save_settings ""
+eq "saving unticked while undecided records 'off'" "off" "$(credit)"
+hasnt "no notice once decided via the form" "$NOTICE" "$(page "")"
+eq "other settings untouched by the credit" "test-key-123" "$(php 'echo JOAWPJM_Settings::get_api_key();')"
+
+echo "== 16e. migration from 1.0.0 settings"
+OLD='"schedule":"twicedaily","post_status":"publish","duration":30,"keep_descriptions":1,"delete_on_uninstall":0,"closure_checks":25'
+h setraw "{$OLD,\"attribution\":1}" >/dev/null
+eq "old attribution=1 reads as on" "on" "$(credit)"
+has "old attribution=1: credit shown without any admin visit" "$CREDIT_HTML" "$(curl -s "$URL5")"
+hasnt "migrated 'on': no notice" "$NOTICE" "$(page "")"
+RAW=$(h option joawpjm_settings)
+has "migration persisted on admin load: credit on" '"credit":"on"' "$RAW"
+hasnt "migration persisted: old key dropped" '"attribution"' "$RAW"
+h setraw "{$OLD,\"attribution\":0}" >/dev/null
+eq "old attribution=0 reads as undecided" "undecided" "$(credit)"
+hasnt "old attribution=0: no credit" "joawpjm-credit" "$(curl -s "$URL5")"
+has "old attribution=0: notice shown" "$NOTICE" "$(page "")"
+RAW=$(h option joawpjm_settings)
+has "attribution=0 persisted as undecided" '"credit":"undecided"' "$RAW"
+hasnt "attribution=0: old key dropped" '"attribution"' "$RAW"
+h setraw "{$OLD}" >/dev/null
+eq "old settings without the key read as undecided" "undecided" "$(credit)"
+h setraw "{$OLD,\"attribution\":\"1\"}" >/dev/null
+eq "old attribution='1' (string) reads as on" "on" "$(credit)"
+h setraw "{$OLD,\"credit\":\"bogus\"}" >/dev/null
+eq "invalid stored value falls back to undecided" "undecided" "$(credit)"
+h setraw "{$OLD,\"credit\":\"off\",\"attribution\":1}" >/dev/null
+eq "a recorded decision wins over a stale old key" "off" "$(credit)"
+eq "migrated option stays non-autoloaded" "off" "$(page "" >/dev/null; wp option list --search=joawpjm_settings --fields=autoload --format=csv | tail -1 | tr -d '\r' | sed 's/^no$/off/')"
+h set credit undecided >/dev/null
 
 echo "== 17. WP Job Manager inactive: graceful"
 wp plugin deactivate wp-job-manager >/dev/null
@@ -322,6 +448,7 @@ eq "cron removed" "" "$(php 'echo wp_next_scheduled("joawpjm_cron_import");')"
 COUNT_SQL='global $wpdb; echo $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->postmeta WHERE meta_key=\"_joawpjm_id\"");'
 eq "listings kept when the option is off" "6" "$(php "$COUNT_SQL")"
 wp plugin activate job-opportunities-api-for-wp-job-manager >/dev/null
+eq "fresh activation: credit undecided" "undecided" "$(h option joawpjm_settings | python3 -c 'import json,sys; print(json.load(sys.stdin).get("credit"))')"
 h reset >/dev/null
 h search main '{"label":"Main search"}' >/dev/null
 scen --jobs default=J1,J2 --feed 1

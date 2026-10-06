@@ -28,6 +28,9 @@ class JOAWPJM_Settings {
 	const NO_FEED_TRANSIENT  = 'joawpjm_no_expired_feed';
 	const RETRY_TRANSIENT    = 'joawpjm_retry_after';
 	const LOG_SIZE           = 50;
+	const CREDIT_UNDECIDED   = 'undecided';
+	const CREDIT_ON          = 'on';
+	const CREDIT_OFF         = 'off';
 
 	/**
 	 * Every option name the plugin may create (used by uninstall).
@@ -49,7 +52,7 @@ class JOAWPJM_Settings {
 			'post_status'         => 'publish',
 			'duration'            => 30,
 			'keep_descriptions'   => 1,
-			'attribution'         => 0,
+			'credit'              => self::CREDIT_UNDECIDED,
 			'delete_on_uninstall' => 0,
 			'closure_checks'      => 25,
 		);
@@ -63,11 +66,64 @@ class JOAWPJM_Settings {
 	 */
 	public static function get( $key = null ) {
 		$settings = get_option( self::OPTION, array() );
-		$settings = wp_parse_args( is_array( $settings ) ? $settings : array(), self::defaults() );
+		$settings = wp_parse_args( self::migrate( is_array( $settings ) ? $settings : array() ), self::defaults() );
+		if ( ! in_array( $settings['credit'], array( self::CREDIT_UNDECIDED, self::CREDIT_ON, self::CREDIT_OFF ), true ) ) {
+			$settings['credit'] = self::CREDIT_UNDECIDED;
+		}
 		if ( null === $key ) {
 			return $settings;
 		}
 		return isset( $settings[ $key ] ) ? $settings[ $key ] : null;
+	}
+
+	/**
+	 * Converts settings stored by version 1.0.0. The old optional credit
+	 * ("attribution", 0/1) becomes the tri-state "credit": an explicit 1 means
+	 * the site owner switched it on; 0 or missing means no decision yet.
+	 *
+	 * @param array $settings Stored settings.
+	 * @return array
+	 */
+	public static function migrate( array $settings ) {
+		if ( ! isset( $settings['credit'] ) ) {
+			$settings['credit'] = ( isset( $settings['attribution'] ) && 1 === (int) $settings['attribution'] ) ? self::CREDIT_ON : self::CREDIT_UNDECIDED;
+		}
+		unset( $settings['attribution'] );
+		return $settings;
+	}
+
+	/**
+	 * Persists the migration of settings stored by an older version. Cheap
+	 * when there is nothing to do; runs in wp-admin and on activation.
+	 *
+	 * @return void
+	 */
+	public static function maybe_upgrade() {
+		$stored = get_option( self::OPTION, null );
+		if ( is_array( $stored ) && ( ! isset( $stored['credit'] ) || array_key_exists( 'attribution', $stored ) ) ) {
+			self::update( self::get() );
+		}
+	}
+
+	/**
+	 * The site owner's decision about the "Data: Job Opportunities API" credit.
+	 *
+	 * @return string One of the CREDIT_* constants.
+	 */
+	public static function credit() {
+		return (string) self::get( 'credit' );
+	}
+
+	/**
+	 * Records the decision about the credit.
+	 *
+	 * @param bool $show Whether to show the credit.
+	 * @return void
+	 */
+	public static function set_credit( $show ) {
+		$settings           = self::get();
+		$settings['credit'] = $show ? self::CREDIT_ON : self::CREDIT_OFF;
+		self::update( $settings );
 	}
 
 	/**

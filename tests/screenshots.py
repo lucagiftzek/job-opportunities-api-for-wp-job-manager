@@ -30,6 +30,18 @@ with sync_playwright() as p:
         render_svg(browser, "banner.svg", "banner-772x250.png", 772, 250, 1)
         render_svg(browser, "banner.svg", "banner-1544x500.png", 772, 250, 2)
 
+    if "shot1" in sys.argv[1:]:  # settings screen only (stage first: wp eval-file /tests/wp-helper.php stage-shot1)
+        ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+        page = ctx.new_page()
+        page.goto(SITE + "/wp-login.php")
+        page.fill("#user_login", "admin")
+        page.fill("#user_pass", PASS)
+        page.click("#wp-submit")
+        page.wait_for_url("**/wp-admin/**")
+        page.goto(SITE + "/wp-admin/edit.php?post_type=job_listing&page=joawpjm")
+        page.screenshot(path=OUT + "/screenshot-1.png", full_page=True)
+        ctx.close()
+
     if "shots" in sys.argv[1:] or len(sys.argv) == 1:
         ctx = browser.new_context(viewport={"width": 1280, "height": 900})
         page = ctx.new_page()

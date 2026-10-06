@@ -28,6 +28,7 @@ class JOAWPJM_Admin {
 	 * @return void
 	 */
 	public static function init() {
+		add_action( 'admin_init', array( 'JOAWPJM_Settings', 'maybe_upgrade' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 20 );
 		add_action( 'admin_notices', array( __CLASS__, 'notices' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
@@ -35,7 +36,7 @@ class JOAWPJM_Admin {
 		add_action( 'save_post_job_listing', array( __CLASS__, 'save_meta_box' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( JOAWPJM_FILE ), array( __CLASS__, 'action_links' ) );
 
-		foreach ( array( 'save_settings', 'test_connection', 'run_now', 'save_search', 'delete_search', 'clear_log' ) as $action ) {
+		foreach ( array( 'save_settings', 'test_connection', 'run_now', 'save_search', 'delete_search', 'clear_log', 'credit_on', 'credit_off' ) as $action ) {
 			add_action( 'admin_post_joawpjm_' . $action, array( __CLASS__, 'handle_' . $action ) );
 		}
 	}
@@ -90,13 +91,38 @@ class JOAWPJM_Admin {
 	}
 
 	/**
-	 * Site-wide admin notices: WP Job Manager missing, key rejected.
+	 * Whether the current admin screen is the plugin's own page or one of the
+	 * WP Job Manager job_listing screens.
+	 *
+	 * @return bool
+	 */
+	private static function is_plugin_screen() {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen ) {
+			return false;
+		}
+		return ( self::$hook && self::$hook === $screen->id ) || 'job_listing' === $screen->post_type;
+	}
+
+	/**
+	 * Site-wide admin notices: WP Job Manager missing, key rejected. On the
+	 * plugin's own screens only: the credit decision while it is undecided.
 	 *
 	 * @return void
 	 */
 	public static function notices() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
+		}
+		if ( self::is_plugin_screen() ) {
+			$screen = get_current_screen();
+			if ( self::$hook !== $screen->id ) {
+				// The plugin page prints these itself; elsewhere (after a credit decision) print them here.
+				self::render_flashes();
+			}
+			if ( JOAWPJM_Settings::CREDIT_UNDECIDED === JOAWPJM_Settings::credit() ) {
+				self::render_credit_notice();
+			}
 		}
 		if ( ! JOAWPJM_Plugin::wpjm_active() ) {
 			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Job Opportunities API for WP Job Manager needs the WP Job Manager plugin. Install and activate WP Job Manager to import jobs.', 'job-opportunities-api-for-wp-job-manager' ) . '</p></div>';
@@ -110,6 +136,22 @@ class JOAWPJM_Admin {
 				esc_html__( 'Update the key', 'job-opportunities-api-for-wp-job-manager' )
 			);
 		}
+	}
+
+	/**
+	 * Notice asking the site owner to decide about the credit.
+	 *
+	 * @return void
+	 */
+	private static function render_credit_notice() {
+		echo '<div class="notice notice-info joawpjm-credit-notice"><p><strong>' . esc_html__( 'Job Opportunities API: show the data credit?', 'job-opportunities-api-for-wp-job-manager' ) . '</strong> ';
+		echo esc_html__( 'The JOA terms ask for a visible “Data: Job Opportunities API” credit, linking to jobopportunitiesapi.org, when you display listings publicly. The plugin can add it under imported listings, but only after you switch it on.', 'job-opportunities-api-for-wp-job-manager' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><p>';
+		wp_nonce_field( 'joawpjm_credit_decision' );
+		echo '<button type="submit" class="button button-primary" name="action" value="joawpjm_credit_on">' . esc_html__( 'Show the credit', 'job-opportunities-api-for-wp-job-manager' ) . '</button> ';
+		echo '<button type="submit" class="button" name="action" value="joawpjm_credit_off">' . esc_html__( 'Not now', 'job-opportunities-api-for-wp-job-manager' ) . '</button> ';
+		echo '<a href="' . esc_url( self::page_url() . '#joawpjm-credit' ) . '">' . esc_html__( 'Credit setting', 'job-opportunities-api-for-wp-job-manager' ) . '</a>';
+		echo '</p></form></div>';
 	}
 
 	// Flash messages (per user, shown once after a redirect).
@@ -230,6 +272,12 @@ class JOAWPJM_Admin {
 		self::render_status_box();
 
 		self::form_open( 'save_settings' );
+
+		echo '<div class="joawpjm-credit-box" id="joawpjm-credit">';
+		echo '<p><label><input type="checkbox" name="joawpjm[credit]" value="1"' . checked( JOAWPJM_Settings::CREDIT_ON, $s['credit'], false ) . '> <strong>' . esc_html__( 'Show "Data: Job Opportunities API" credit (required by the JOA terms for public display)', 'job-opportunities-api-for-wp-job-manager' ) . '</strong></label></p>';
+		echo '<p class="description">' . esc_html__( 'When ticked, a small “Data: Job Opportunities API” line linking to jobopportunitiesapi.org is shown under the description on each imported listing’s page; it stays off until you tick it, and the JOA terms ask for it when you display listings publicly.', 'job-opportunities-api-for-wp-job-manager' ) . '</p>';
+		echo '</div>';
+
 		echo '<h2>' . esc_html__( 'Connection', 'job-opportunities-api-for-wp-job-manager' ) . '</h2>';
 		echo '<table class="form-table" role="presentation"><tbody>';
 
@@ -275,9 +323,6 @@ class JOAWPJM_Admin {
 		echo '<tr><th scope="row"><label for="joawpjm-closure-checks">' . esc_html__( 'Closure checks per run', 'job-opportunities-api-for-wp-job-manager' ) . '</label></th><td>';
 		echo '<input type="number" min="0" max="500" id="joawpjm-closure-checks" name="joawpjm[closure_checks]" value="' . esc_attr( (string) $s['closure_checks'] ) . '" class="small-text">';
 		echo '<p class="description">' . esc_html__( 'On plans without the closure feed, this many imported listings are re-checked each run (oldest check first) and expired when the employer closed the role.', 'job-opportunities-api-for-wp-job-manager' ) . '</p></td></tr>';
-
-		echo '<tr><th scope="row">' . esc_html__( 'Credit link', 'job-opportunities-api-for-wp-job-manager' ) . '</th><td><label><input type="checkbox" name="joawpjm[attribution]" value="1"' . checked( $s['attribution'], 1, false ) . '> ' . esc_html__( 'Show a small “Jobs via Job Opportunities API” link under imported listings', 'job-opportunities-api-for-wp-job-manager' ) . '</label>';
-		echo '<p class="description">' . esc_html__( 'Optional and off by default. Roles whose data requires an attribution line always show it, whatever this setting.', 'job-opportunities-api-for-wp-job-manager' ) . '</p></td></tr>';
 
 		echo '<tr><th scope="row">' . esc_html__( 'Uninstall', 'job-opportunities-api-for-wp-job-manager' ) . '</th><td><label><input type="checkbox" name="joawpjm[delete_on_uninstall]" value="1"' . checked( $s['delete_on_uninstall'], 1, false ) . '> ' . esc_html__( 'Delete imported listings when the plugin is uninstalled', 'job-opportunities-api-for-wp-job-manager' ) . '</label></td></tr>';
 
@@ -712,7 +757,7 @@ class JOAWPJM_Admin {
 			'post_status'         => ( isset( $input['post_status'] ) && 'pending' === $input['post_status'] ) ? 'pending' : 'publish',
 			'duration'            => isset( $input['duration'] ) ? max( 1, min( 365, absint( $input['duration'] ) ) ) : 30,
 			'keep_descriptions'   => empty( $input['keep_descriptions'] ) ? 0 : 1,
-			'attribution'         => empty( $input['attribution'] ) ? 0 : 1,
+			'credit'              => empty( $input['credit'] ) ? JOAWPJM_Settings::CREDIT_OFF : JOAWPJM_Settings::CREDIT_ON,
 			'delete_on_uninstall' => empty( $input['delete_on_uninstall'] ) ? 0 : 1,
 			'closure_checks'      => isset( $input['closure_checks'] ) ? min( 500, absint( $input['closure_checks'] ) ) : 25,
 		);
@@ -733,6 +778,46 @@ class JOAWPJM_Admin {
 			self::flash( 'success', __( 'Settings saved.', 'job-opportunities-api-for-wp-job-manager' ) );
 		}
 		self::back();
+	}
+
+	/**
+	 * "Show the credit" button of the credit notice.
+	 *
+	 * @return void
+	 */
+	public static function handle_credit_on() {
+		self::credit_decision( true );
+	}
+
+	/**
+	 * "Not now" button of the credit notice.
+	 *
+	 * @return void
+	 */
+	public static function handle_credit_off() {
+		self::credit_decision( false );
+	}
+
+	/**
+	 * Records the credit decision and returns to the screen the notice was on.
+	 *
+	 * @param bool $show Whether to show the credit.
+	 * @return void
+	 */
+	private static function credit_decision( $show ) {
+		self::require_capability();
+		check_admin_referer( 'joawpjm_credit_decision' );
+
+		JOAWPJM_Settings::set_credit( $show );
+		self::flash(
+			'success',
+			$show
+				? __( 'The “Data: Job Opportunities API” credit is now shown on imported listings. You can change this in the plugin settings.', 'job-opportunities-api-for-wp-job-manager' )
+				: __( 'The credit stays off. You can switch it on any time in the plugin settings.', 'job-opportunities-api-for-wp-job-manager' )
+		);
+		$back = wp_get_referer();
+		wp_safe_redirect( $back ? $back : self::page_url() );
+		exit;
 	}
 
 	/**

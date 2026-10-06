@@ -53,6 +53,7 @@ class JOAWPJM_Plugin {
 		add_option( JOAWPJM_Settings::SEARCHES_OPTION, array(), '', false );
 		add_option( JOAWPJM_Settings::STATE_OPTION, array(), '', false );
 		add_option( JOAWPJM_Settings::LOG_OPTION, array(), '', false );
+		JOAWPJM_Settings::maybe_upgrade();
 		JOAWPJM_Settings::reschedule( JOAWPJM_Settings::get( 'schedule' ) );
 	}
 

@@ -5,7 +5,7 @@ Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: wp-job-manager
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,8 @@ Import employer-direct jobs from the Job Opportunities API (JOA) into WP Job Man
 **Job Opportunities API for WP Job Manager** fills your WP Job Manager job board with fresh, employer-direct job postings from the Job Opportunities API (JOA), with no code.
 
 The Job Opportunities API (JOA) collects job postings directly from employers' own applicant tracking systems and career sites. Every field is tagged as published by the employer, inferred, or absent, and closed roles are tracked, so your board can drop a listing when the employer closes the role. See [the coverage page](https://jobopportunitiesapi.org/coverage) for live figures on countries and sources.
+
+If you show the imported jobs publicly, the Job Opportunities API terms ask for a visible "Data: Job Opportunities API" credit linking to jobopportunitiesapi.org. The plugin can add it to every imported listing for you, but only after you switch it on: it is off until you tick it in the settings.
 
 = What it does =
 
@@ -28,6 +30,7 @@ The Job Opportunities API (JOA) collects job postings directly from employers' o
 * **Keep your edits**: lock any imported listing to stop updates from the API (a locked listing still expires when the role closes).
 * **Quota-friendly**: after the first run, each search only asks for recently posted jobs, and page sizes follow your plan's limits.
 * **Activity log** of the last 50 runs, with counts and errors.
+* **The data credit, on your terms**: one tick adds a small "Data: Job Opportunities API" line, linking to jobopportunitiesapi.org, under the description of each imported listing. It is off until you switch it on, and a notice on the plugin's screens and the WP Job Manager listing screens (never site-wide) reminds administrators to decide. Attribution lines that come with some roles' data are always shown.
 * **No images are downloaded** into your media library, nothing is tracked, and no remote scripts or styles are loaded.
 
 = Requirements =
@@ -91,7 +94,11 @@ Yes. Tick "Lock: keep my edits" in the Job Opportunities API box on the listing'
 
 = Why do some listings show a line such as "Listed via Erioun for Teams"? =
 
-Some roles are listed by employers through a partner service whose data licence requires that attribution. The plugin always shows it on those listings and links applications to the role's own page. This is separate from the optional credit link, which is off unless you switch it on.
+Some roles are listed by employers through a partner service whose data licence requires that attribution. The plugin always shows it on those listings and links applications to the role's own page. This is separate from the "Data: Job Opportunities API" credit, which is off until you switch it on.
+
+= Do I have to show a credit? =
+
+When you show the listings publicly, the Job Opportunities API terms ask for a visible "Data: Job Opportunities API" credit linking to jobopportunitiesapi.org. The plugin can add it for you, under the description of each imported listing, but only after you switch it on (tick the box at the top of the Settings tab, or click "Show the credit" in the notice), as WordPress.org rules require. Until you decide, a notice on the plugin's screens and the WP Job Manager listing screens reminds administrators; "Not now" hides it.
 
 = Are company logos downloaded? =
 
@@ -107,7 +114,7 @@ Yes, with the `joawpjm_api_base` filter or the `JOAWPJM_API_BASE` constant (usef
 
 == Screenshots ==
 
-1. Settings: API key (masked), schedule, listing defaults and the "Test connection" and "Run import now" buttons.
+1. Settings: the "Data: Job Opportunities API" credit option, API key (masked), schedule, listing defaults and the "Test connection" and "Run import now" buttons.
 2. The saved search editor with filters and listing options.
 3. Imported jobs in the WP Job Manager listings screen.
 4. An imported job on the front end, with the Apply button linking to the employer.
@@ -115,10 +122,18 @@ Yes, with the `joawpjm_api_base` filter or the `JOAWPJM_API_BASE` constant (usef
 
 == Changelog ==
 
+= 1.0.1 =
+* New: an opt-in "Data: Job Opportunities API" credit linking to jobopportunitiesapi.org, shown under imported listings once you switch it on. The Job Opportunities API terms ask for it when listings are displayed publicly.
+* New: until you decide, a notice on the plugin's screens and the WP Job Manager listing screens (administrators only) offers "Show the credit" and "Not now".
+* Changed: replaces the old optional "Jobs via Job Opportunities API" link. Sites that had it switched on now show the new credit; everyone else is asked once.
+
 = 1.0.0 =
 * First release: saved searches, scheduled and manual imports, WP-CLI, de-duplication, automatic expiry of closed roles, listing lock, activity log.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Adds the opt-in "Data: Job Opportunities API" credit that the Job Opportunities API terms ask for when listings are shown publicly. It stays off until you switch it on.
 
 = 1.0.0 =
 First release.

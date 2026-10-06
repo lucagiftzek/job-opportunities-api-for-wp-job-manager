@@ -103,6 +103,26 @@ switch ( $cmd ) {
 		echo wp_next_scheduled( 'joawpjm_cron_import' ) ? 'scheduled' : 'none';
 		break;
 
+	case 'setraw': // setraw <json>  (writes joawpjm_settings as an older version would have stored it)
+		update_option( 'joawpjm_settings', json_decode( $args[1], true ), false );
+		echo 'ok';
+		break;
+
+	case 'stage-shot1': // settings screenshot: placeholder key (not a real key), one search, a short log, credit undecided
+		JOAWPJM_Settings::update( JOAWPJM_Settings::defaults() );
+		JOAWPJM_Settings::set_api_key( 'placeholder-not-a-key-0000' );
+		$s = array_merge( JOAWPJM_Settings::search_defaults(), array( 'id' => 'live', 'label' => 'Remote jobs in Germany', 'country' => 'DE', 'remote' => 'remote', 'max_per_run' => 10, 'job_type' => 'auto', 'author' => 1 ) );
+		JOAWPJM_Settings::save_searches( array( 'live' => $s ) );
+		$t   = time() - 300;
+		$log = array();
+		foreach ( array( array( 'Remote jobs in Germany', 'live', 10, 10, 0 ), array( 'Closure checks', '', 0, 0, 0 ), array( 'Remote jobs in Germany', 'live', 10, 0, 10 ), array( 'Closure checks', '', 0, 0, 0 ) ) as $i => $row ) {
+			array_unshift( $log, array( 'time' => $t + $i * 20, 'trigger' => 'cli', 'search' => $row[0], 'search_id' => $row[1], 'fetched' => $row[2], 'created' => $row[3], 'updated' => 0, 'unchanged' => $row[4], 'skipped' => 0, 'expired' => 0, 'errors' => array(), 'notes' => array() ) );
+		}
+		update_option( 'joawpjm_log', $log, false );
+		JOAWPJM_Settings::reschedule( 'twicedaily' );
+		echo 'staged';
+		break;
+
 	case 'state':
 		echo wp_json_encode( JOAWPJM_Settings::get_state() );
 		break;

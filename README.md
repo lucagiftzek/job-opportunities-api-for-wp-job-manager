@@ -13,7 +13,9 @@ jobs from employers' own applicant tracking systems and career sites with zero c
   incremental requests (`posted_after`) after the first run.
 - Closed roles expire automatically: `/v1/jobs/expired` feed when the plan has it, otherwise a configurable
   number of per-listing checks per run. Locked listings keep admin edits but still expire.
-- Attribution lines required by the data licence are always shown; the plugin's own credit link is opt-in.
+- Attribution lines required by the data licence are always shown. The "Data: Job Opportunities API" credit that the JOA
+  terms ask for on public pages is opt-in (off until the site owner ticks it; an admin notice on the plugin and
+  job_listing screens asks once).
 - No telemetry, no remote assets, no image downloads.
 
 Coverage figures: https://jobopportunitiesapi.org/coverage · API docs: https://jobopportunitiesapi.org/docs ·
@@ -22,7 +24,7 @@ free key (no card required): https://jobopportunitiesapi.org/register
 ## Install
 
 1. Install and activate WP Job Manager.
-2. Upload `dist/job-opportunities-api-for-wp-job-manager-1.0.0.zip` (Plugins > Add New > Upload) and activate.
+2. Upload `dist/job-opportunities-api-for-wp-job-manager-1.0.1.zip` (Plugins > Add New > Upload) and activate.
 3. Job Listings > JOA Import: save your API key, click **Test connection**, add a saved search, **Run import now**.
 
 ## Repository layout
