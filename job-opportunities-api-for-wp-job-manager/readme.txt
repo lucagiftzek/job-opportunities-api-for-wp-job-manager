@@ -1,5 +1,5 @@
 === Job Opportunities API for WP Job Manager ===
-Contributors: joboppapi
+Contributors: jobopportunitiesapi
 Tags: jobs, job board, wp job manager, job import, recruitment
 Requires at least: 6.4
 Tested up to: 7.1
