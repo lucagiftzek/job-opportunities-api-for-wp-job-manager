@@ -21,6 +21,11 @@ if ! wp core is-installed >/dev/null 2>&1; then
 fi
 wp plugin is-installed wp-job-manager || wp plugin install wp-job-manager
 wp plugin activate wp-job-manager
+# WP Job Manager 2.4.8+ only registers the job_listing_type taxonomy when
+# "Enable listing types" is saved in its settings: the checkbox defaults to on
+# ("1"), but a fresh install never stores the option, so the taxonomy (and with
+# it the tests' job type mapping) silently goes missing. Store the default.
+wp option update job_manager_enable_types 1 >/dev/null
 wp plugin activate job-opportunities-api-for-wp-job-manager
 
 # Pretty permalinks (the wordpress image ships mod_rewrite).

@@ -6,7 +6,7 @@ Usage examples:
   scenario.py --jobs default=J5 --feed 0 --closed J2 --gone J4 --withdrawn J5
   scenario.py ... --set J2.title="Renamed role" --mode 429 --expired J1,J3
 """
-import argparse, json, os
+import argparse, json, os, re
 
 def job(n, **kw):
     base = {
@@ -53,7 +53,30 @@ FIX = {
 }
 
 def ids(csv):
-    return [FIX[k]["id"] for k in csv.split(",") if k]
+    """A comma-separated list of fixture keys (J1, J1DUP, ...) and/or
+    generic jobs G<n> (fixture n generated on the fly)."""
+    out = []
+    for k in csv.split(","):
+        if not k:
+            continue
+        if k.startswith("G"):
+            out.append(job(int(k[1:]))["id"])
+        else:
+            out.append(FIX[k]["id"])
+    return out
+
+def parse_reset(spec):
+    """'' -> None; '123' -> 123; '+10d' / '-1h' / '+30m' -> relative to now."""
+    if not spec:
+        return None
+    if spec.isdigit():
+        return int(spec)
+    import time
+    m = re.fullmatch(r"([+-])(\d+)([dhm])", spec)
+    if not m:
+        raise SystemExit("bad --records-reset: %r" % spec)
+    mult = {"h": 3600, "d": 86400, "m": 60}[m.group(3)]
+    return int(time.time()) + (1 if m.group(1) == "+" else -1) * int(m.group(2)) * mult
 
 p = argparse.ArgumentParser()
 p.add_argument("--jobs", nargs="*", default=[])
@@ -64,6 +87,10 @@ p.add_argument("--closed", default="")
 p.add_argument("--gone", default="")
 p.add_argument("--withdrawn", default="")
 p.add_argument("--set", nargs="*", default=[])
+p.add_argument("--records", default="",
+               help="'' (off, no headers) | unlimited | limit=N,remaining=M")
+p.add_argument("--records-reset", default="",
+               help="unix ts or +10d / -1h / +30m relative (needs --records limit=...)")
 a = p.parse_args()
 
 for s in a.set:
@@ -76,7 +103,21 @@ scenario = {"mode": a.mode, "feed": bool(a.feed), "jobs": {},
             "closed": ids(a.closed), "gone": ids(a.gone), "withdrawn": ids(a.withdrawn)}
 for spec in a.jobs:
     name, csv = spec.split("=", 1)
-    scenario["jobs"]["_default" if name == "default" else name] = [FIX[k] for k in csv.split(",") if k]
+    scenario["jobs"]["_default" if name == "default" else name] = [job(int(k[1:])) if k.startswith("G") else FIX[k] for k in csv.split(",") if k]
+if a.records:
+    if a.records == "unlimited":
+        scenario["records"] = "unlimited"
+    else:
+        import time
+        rec = {}
+        for part in a.records.split(","):
+            k, v = part.split("=", 1)
+            rec[k] = int(v)
+        reset = parse_reset(a.records_reset)
+        if reset is None:
+            reset = int(time.time()) + 30 * 86400  # a month out, like the real API
+        rec["reset"] = reset
+        scenario["records"] = rec
 
 here = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(here, "mock", "state", "scenario.json"), "w") as f:

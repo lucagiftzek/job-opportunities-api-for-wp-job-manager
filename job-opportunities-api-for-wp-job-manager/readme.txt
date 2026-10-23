@@ -5,7 +5,7 @@ Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: wp-job-manager
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,7 +28,7 @@ If you show the imported jobs publicly, the Job Opportunities API terms ask for 
 * **No duplicates**: one listing per job, plus a second check on the employer's apply link so the same role found by two searches is imported once. A run lock prevents overlapping imports.
 * **Automatic expiry**: when the employer closes a role, the listing is set to "Expired". Plans with the closure feed use it; other plans re-check a configurable number of listings per run.
 * **Keep your edits**: lock any imported listing to stop updates from the API (a locked listing still expires when the role closes).
-* **Quota-friendly**: after the first run, each search only asks for recently posted jobs, and page sizes follow your plan's limits.
+* **Quota-friendly**: after the first run, each search only asks for recently posted jobs, page sizes follow your plan's limits, and the plugin paces itself against your key's monthly record allowance so a free key lasts the whole month.
 * **Activity log** of the last 50 runs, with counts and errors.
 * **The data credit, on your terms**: one tick adds a small "Data: Job Opportunities API" line, linking to jobopportunitiesapi.org, under the description of each imported listing. It is off until you switch it on, and a notice on the plugin's screens and the WP Job Manager listing screens (never site-wide) reminds administrators to decide. Attribution lines that come with some roles' data are always shown.
 * **No images are downloaded** into your media library, nothing is tracked, and no remote scripts or styles are loaded.
@@ -74,7 +74,7 @@ WP-Cron runs when your site gets visits. On low-traffic sites, set up a real cro
 
 = Do I need a paid plan? =
 
-No. The plugin works with a free key (no card required). Each job returned counts towards your plan's monthly record allowance, so keep "Max jobs per run" and the schedule sensible. The plugin only asks for recently posted jobs after the first run.
+No. The plugin works with a free key (no card required). Be aware that every job the API returns counts towards your key's monthly record allowance, and the free Explore plan allows 1,000 records a month. To make that allowance last, the plugin paces itself: it reads the key's remaining records from the API's responses, and each scheduled run is limited to an equal share of what is left until the allowance resets, so a free key's 1,000 records stretch across the whole month instead of being used up in the first week. A run you start by hand ("Run import now" or WP-CLI) may use everything that is still left. When a run's share is used up, it stops and the activity log says so. The plugin only asks for recently posted jobs after the first run, and plans with the closure feed check for closed roles with a time cursor instead of one request per listing.
 
 = Where do applicants apply? =
 
@@ -122,6 +122,11 @@ Yes, with the `joawpjm_api_base` filter or the `JOAWPJM_API_BASE` constant (usef
 
 == Changelog ==
 
+= 1.0.2 =
+* New: the plugin paces a key's monthly record allowance so a free key (1,000 records a month on the free Explore plan) lasts the whole month. It reads the remaining records from the API's responses and limits each scheduled run to an equal share of what is left until the allowance resets; a run started by hand may use everything still left.
+* New: when the API reports an allowance, the settings page shows the key's remaining records and when the allowance resets.
+* Changed: the FAQ answer about free keys now describes how the allowance is paced.
+
 = 1.0.1 =
 * New: an opt-in "Data: Job Opportunities API" credit linking to jobopportunitiesapi.org, shown under imported listings once you switch it on. The Job Opportunities API terms ask for it when listings are displayed publicly.
 * New: until you decide, a notice on the plugin's screens and the WP Job Manager listing screens (administrators only) offers "Show the credit" and "Not now".
@@ -131,6 +136,9 @@ Yes, with the `joawpjm_api_base` filter or the `JOAWPJM_API_BASE` constant (usef
 * First release: saved searches, scheduled and manual imports, WP-CLI, de-duplication, automatic expiry of closed roles, listing lock, activity log.
 
 == Upgrade Notice ==
+
+= 1.0.2 =
+Scheduled imports now pace themselves to your key's remaining monthly record allowance, so a free key's allowance lasts the whole month instead of running out in the first week.
 
 = 1.0.1 =
 Adds the opt-in "Data: Job Opportunities API" credit that the Job Opportunities API terms ask for when listings are shown publicly. It stays off until you switch it on.

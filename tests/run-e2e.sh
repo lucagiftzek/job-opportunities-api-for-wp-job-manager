@@ -66,7 +66,7 @@ eq "5 imported listings exist" "5" "$(h count)"
 eq "paged with plan max_page_size (3): 2 job requests" "2" "$(reqs /v1/jobs)"
 has "page size clamped to max_page_size" '"limit":"3"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
 has "second page uses cursor" '"cursor":"3"' "$(cat $STATE/requests.log)"
-has "user agent JOA-WPJM/<version>" '"ua":"JOA-WPJM/1.0.1"' "$(cat $STATE/requests.log)"
+has "user agent JOA-WPJM/<version>" '"ua":"JOA-WPJM/1.0.2"' "$(cat $STATE/requests.log)"
 has "descriptions requested" '"include_description":"true"' "$(cat $STATE/requests.log)"
 hasnt "first run sends no posted_after" 'posted_after' "$(cat $STATE/requests.log)"
 P1=$(h pid $J1); P2=$(h pid $J2); P3=$(h pid $J3); P4=$(h pid $J4); P5=$(h pid $J5)
@@ -458,6 +458,67 @@ wp plugin uninstall job-opportunities-api-for-wp-job-manager --deactivate --skip
 eq "listings deleted when the option is on" "0" "$(php "$COUNT_SQL")"
 eq "no plugin options or transients left" "0" "$(php 'global $wpdb; echo $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->options WHERE option_name LIKE \"%joawpjm%\"");')"
 wp plugin activate job-opportunities-api-for-wp-job-manager >/dev/null
+
+echo "== 19. record-allowance pacing (free key must last the month)"
+# Clean slate: no searches, no listings, no run state, no cached /v1/me.
+h reset >/dev/null
+h set schedule twicedaily >/dev/null
+h search pace '{"label":"Pacing search","q":"pace","max_per_run":50}' >/dev/null
+login
+R10=$(( $(date +%s) + 10 * 86400 ))   # the monthly period resets in 10 days
+
+# (a) cron run: 100 of 1000 left, 10 days to the reset, twicedaily
+#     -> 20 runs left, this run's share is floor(100/20) = 5 of the 10 jobs.
+h setrecords "{\"limit\":1000,\"remaining\":100,\"reset\":$R10}" >/dev/null
+scen --jobs pace=G10,G11,G12,G13,G14,G15,G16,G17,G18,G19 --feed 1 --records limit=1000,remaining=100 --records-reset $R10
+reqs_reset
+wp cron event run joawpjm_cron_import >/dev/null
+eq "cron run capped at floor(100/20)=5" "5" "$(h entry 'Pacing search' created)"
+eq "cron run fetched only its share" "5" "$(h entry 'Pacing search' fetched)"
+has "pacing note logged" "monthly record allowance: 5 records were available to this run and they are used" "$(h entry 'Pacing search' notes)"
+has "pacing note names the reset" "The allowance resets on" "$(h entry 'Pacing search' notes)"
+eq "incremental window not advanced (budget stopped the search)" "" "$(h state | python3 -c 'import json,sys; s=json.load(sys.stdin)["searches"]; s=s if isinstance(s,dict) else {}; print(s.get("pace",{}).get("last_success",""))')"
+eq "no per-listing checks (plan has the feed)" "0" "$(grep -c '"path":"/v1/jobs/0000' $STATE/requests.log)"
+eq "latest allowance (100-5=95) saved in the run state" "95" "$(h records | python3 -c 'import json,sys; print(json.load(sys.stdin)["remaining"])')"
+has "settings page shows the remaining allowance" "This key: 95 of 1000 records left this month (resets" "$(page "")"
+
+# (b) a manual run started by hand may use everything that is left (95), not a run share.
+scen --jobs pace=G20,G21,G22,G23,G24,G25,G26,G27,G28,G29 --feed 1 --records limit=1000,remaining=95 --records-reset $R10
+reqs_reset
+wp joawpjm import >/dev/null
+eq "manual run imports all 10 (well above the cron share of 4)" "10" "$(h entry 'Pacing search' created)"
+hasnt "manual run: no pacing note" "Pacing" "$(h entry 'Pacing search' notes)"
+eq "manual run spent what it fetched" "85" "$(h records | python3 -c 'import json,sys; print(json.load(sys.stdin)["remaining"])')"
+
+# (c) "unlimited" (unmetered key): no cap beyond max_per_run.
+h setrecords '{"limit":-1,"remaining":null,"reset":0}' >/dev/null
+scen --jobs pace=G30,G31,G32,G33,G34,G35,G36,G37,G38,G39,G40,G41,G42,G43,G44 --feed 1 --records unlimited
+reqs_reset
+wp cron event run joawpjm_cron_import >/dev/null
+eq "unlimited key: no cap beyond max_per_run" "15" "$(h entry 'Pacing search' created)"
+hasnt "unlimited: no pacing note" "Pacing" "$(h entry 'Pacing search' notes)"
+eq "unlimited saved in the run state" "-1" "$(h records | python3 -c 'import json,sys; print(json.load(sys.stdin)["limit"])')"
+has "settings page shows unlimited" "This key: unlimited records this month" "$(page "")"
+
+# (d) closure checks share the budget: with a share of floor(5/20)=0 no /v1/jobs/{id} call is made.
+h setrecords "{\"limit\":1000,\"remaining\":5,\"reset\":$R10}" >/dev/null
+scen --jobs pace= --feed 0 --records limit=1000,remaining=5 --records-reset $R10
+reqs_reset
+wp cron event run joawpjm_cron_import >/dev/null
+eq "share-0 run: no job search requests" "0" "$(reqs /v1/jobs)"
+has "share-0 pacing note on the search" "monthly record allowance: 0 records were available to this run" "$(h entry 'Pacing search' notes)"
+eq "share-0 run: no per-listing closure requests" "0" "$(grep -c '"path":"/v1/jobs/0000' $STATE/requests.log)"
+has "share-0 pacing note on the closure checks" "monthly record allowance: 0 records were available to this run" "$(h entry 'Closure checks' notes)"
+
+# (e) the period already reset (reset in the past): the old allowance does not cap the run.
+PAST=$(( $(date +%s) - 10 * 3600 ))
+h setrecords "{\"limit\":1000,\"remaining\":100,\"reset\":$PAST}" >/dev/null
+wp transient delete joawpjm_no_expired_feed >/dev/null
+scen --jobs pace=G50,G51,G52,G53,G54,G55,G56,G57 --feed 1 --records limit=1000,remaining=100 --records-reset $PAST
+reqs_reset
+wp cron event run joawpjm_cron_import >/dev/null
+eq "reset in the past: run not capped" "8" "$(h entry 'Pacing search' created)"
+hasnt "reset in the past: no pacing note" "Pacing" "$(h entry 'Pacing search' notes)"
 
 echo
 echo "RESULT: $PASS passed, $FAIL failed"

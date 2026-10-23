@@ -308,6 +308,11 @@ class JOAWPJM_Admin {
 		}
 		echo '</select><p class="description">' . esc_html__( 'Runs with WP-Cron, so it needs site traffic or a real cron job calling wp-cron.php.', 'job-opportunities-api-for-wp-job-manager' ) . '</p></td></tr>';
 
+		$allowance = self::record_allowance_line();
+		if ( '' !== $allowance ) {
+			echo '<tr><th scope="row">' . esc_html__( 'Record allowance', 'job-opportunities-api-for-wp-job-manager' ) . '</th><td><p class="description">' . esc_html( $allowance ) . '</p></td></tr>';
+		}
+
 		echo '<tr><th scope="row"><label for="joawpjm-post-status">' . esc_html__( 'Status of new listings', 'job-opportunities-api-for-wp-job-manager' ) . '</label></th><td><select id="joawpjm-post-status" name="joawpjm[post_status]">';
 		echo '<option value="publish"' . selected( $s['post_status'], 'publish', false ) . '>' . esc_html__( 'Published', 'job-opportunities-api-for-wp-job-manager' ) . '</option>';
 		echo '<option value="pending"' . selected( $s['post_status'], 'pending', false ) . '>' . esc_html__( 'Pending review', 'job-opportunities-api-for-wp-job-manager' ) . '</option>';
@@ -714,6 +719,46 @@ class JOAWPJM_Admin {
 			return '';
 		}
 		return (string) wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $timestamp );
+	}
+
+	/**
+	 * One line about the key's monthly record allowance, from the last value
+	 * the API reported. '' when no allowance is known yet. Not escaped: the
+	 * caller echoes it, and only this page does.
+	 *
+	 * @return string
+	 */
+	private static function record_allowance_line() {
+		$state   = JOAWPJM_Settings::get_state();
+		$records = ( isset( $state['records'] ) && is_array( $state['records'] ) ) ? $state['records'] : null;
+		if ( ! is_array( $records ) || ! isset( $records['limit'] ) ) {
+			return '';
+		}
+		if ( -1 === (int) $records['limit'] ) {
+			return __( 'This key: unlimited records this month.', 'job-opportunities-api-for-wp-job-manager' );
+		}
+		$remaining = ( isset( $records['remaining'] ) && is_numeric( $records['remaining'] ) ) ? (int) $records['remaining'] : null;
+		if ( null === $remaining ) {
+			return '';
+		}
+		$reset = ( isset( $records['reset'] ) && is_numeric( $records['reset'] ) ) ? (int) $records['reset'] : 0;
+		if ( $reset > time() ) {
+			$line = sprintf(
+				/* translators: 1: records left this month, 2: monthly record limit, 3: date and time the allowance resets. */
+				__( 'This key: %1$d of %2$d records left this month (resets %3$s). Scheduled runs share them evenly until then.', 'job-opportunities-api-for-wp-job-manager' ),
+				$remaining,
+				(int) $records['limit'],
+				self::format_time( $reset )
+			);
+		} else {
+			$line = sprintf(
+				/* translators: 1: records left this month, 2: monthly record limit. */
+				__( 'This key: %1$d of %2$d records left this month. Scheduled runs share them evenly.', 'job-opportunities-api-for-wp-job-manager' ),
+				$remaining,
+				(int) $records['limit']
+			);
+		}
+		return $line;
 	}
 
 	// Form handlers (admin-post.php).

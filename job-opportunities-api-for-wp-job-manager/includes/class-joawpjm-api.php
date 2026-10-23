@@ -110,6 +110,7 @@ class JOAWPJM_API {
 	 *     @type string     $message     Human-readable error message ('' when ok).
 	 *     @type int        $retry_after Seconds to wait (429 only).
 	 *     @type string     $feature     X-JOA-Required-Feature header (403 only).
+	 *     @type array|null $records     Parsed X-RateLimit-Records-* headers (see parse_records_headers()).
 	 * }
 	 */
 	public function request( $path, array $query = array() ) {
@@ -121,6 +122,7 @@ class JOAWPJM_API {
 			'message'     => '',
 			'retry_after' => 0,
 			'feature'     => '',
+			'records'     => null,
 		);
 
 		if ( '' === $this->key ) {
@@ -157,6 +159,9 @@ class JOAWPJM_API {
 		$data           = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$result['code'] = $code;
 		$result['data'] = is_array( $data ) ? $data : null;
+
+		// Every metered response (success or error) reports the key's record allowance.
+		$result['records'] = self::parse_records_headers( $response );
 
 		if ( $code >= 200 && $code < 300 ) {
 			if ( is_array( $data ) ) {
@@ -201,6 +206,63 @@ class JOAWPJM_API {
 			$seconds = $time ? $time - time() : 60;
 		}
 		return max( 1, min( DAY_IN_SECONDS, $seconds ) );
+	}
+
+	/**
+	 * Parses the record-allowance headers every metered response carries:
+	 * X-RateLimit-Records-Limit, -Used, -Remaining and -Reset.
+	 *
+	 * @param array|WP_HTTP_Response $response The HTTP response.
+	 * @return array|null null when the response carries no X-RateLimit-Records-Limit header;
+	 *                    otherwise array( 'limit' => int, 'remaining' => int|null, 'reset' => int ),
+	 *                    with 'limit' -1 for an unmetered ("unlimited") key.
+	 */
+	public static function parse_records_headers( $response ) {
+		$limit = self::header_value( wp_remote_retrieve_header( $response, 'x-ratelimit-records-limit' ) );
+		if ( '' === $limit ) {
+			return null;
+		}
+		if ( 'unlimited' === strtolower( $limit ) ) {
+			return array(
+				'limit'     => -1,
+				'remaining' => null,
+				'reset'     => 0,
+			);
+		}
+		if ( ! ctype_digit( $limit ) ) {
+			return null;
+		}
+		$limit = (int) $limit;
+
+		$remaining = self::header_value( wp_remote_retrieve_header( $response, 'x-ratelimit-records-remaining' ) );
+		if ( ctype_digit( $remaining ) ) {
+			$remaining = (int) $remaining;
+		} else {
+			// Not reported: derive it from the records already used this period.
+			$used      = self::header_value( wp_remote_retrieve_header( $response, 'x-ratelimit-records-used' ) );
+			$remaining = ctype_digit( $used ) ? max( 0, $limit - (int) $used ) : null;
+		}
+
+		$reset = self::header_value( wp_remote_retrieve_header( $response, 'x-ratelimit-records-reset' ) );
+
+		return array(
+			'limit'     => $limit,
+			'remaining' => $remaining,
+			'reset'     => ctype_digit( $reset ) ? (int) $reset : 0,
+		);
+	}
+
+	/**
+	 * Normalises a header value (wp_remote_retrieve_header() may return an array).
+	 *
+	 * @param string|array $header Header value.
+	 * @return string Trimmed first value ('' when absent).
+	 */
+	private static function header_value( $header ) {
+		if ( is_array( $header ) ) {
+			$header = reset( $header );
+		}
+		return trim( (string) $header );
 	}
 
 	/**

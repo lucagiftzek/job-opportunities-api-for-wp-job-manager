@@ -126,4 +126,16 @@ switch ( $cmd ) {
 	case 'state':
 		echo wp_json_encode( JOAWPJM_Settings::get_state() );
 		break;
+
+	case 'setrecords': // setrecords <json>  (seeds the last-known record allowance in the run state)
+		$state           = JOAWPJM_Settings::get_state();
+		$state['records'] = json_decode( $args[1], true );
+		JOAWPJM_Settings::update_state( $state );
+		echo 'ok';
+		break;
+
+	case 'records':
+		$state = JOAWPJM_Settings::get_state();
+		echo isset( $state['records'] ) ? wp_json_encode( $state['records'] ) : 'null';
+		break;
 }

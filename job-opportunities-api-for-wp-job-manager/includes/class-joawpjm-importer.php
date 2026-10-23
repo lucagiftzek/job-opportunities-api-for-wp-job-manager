@@ -53,6 +53,29 @@ class JOAWPJM_Importer {
 	private $deadline = 0.0;
 
 	/**
+	 * Records of the key's monthly allowance this run may still spend
+	 * (shared by the search imports and the closure checks).
+	 * null = no metered allowance known, only max_per_run applies.
+	 *
+	 * @var int|null
+	 */
+	private $record_budget = null;
+
+	/**
+	 * The run's original record budget, for the log note.
+	 *
+	 * @var int
+	 */
+	private $record_budget_total = 0;
+
+	/**
+	 * The latest X-RateLimit-Records-* values reported by the API in this run.
+	 *
+	 * @var array|null
+	 */
+	private $records = null;
+
+	/**
 	 * Whether a fatal API condition stopped the run.
 	 *
 	 * @var bool
@@ -106,10 +129,13 @@ class JOAWPJM_Importer {
 			)
 		);
 
-		$this->dry_run  = (bool) $args['dry_run'];
-		$this->trigger  = sanitize_key( $args['trigger'] );
-		$this->deadline = ( (int) $args['budget'] > 0 ) ? microtime( true ) + (int) $args['budget'] : 0.0;
-		$this->stopped  = false;
+		$this->dry_run             = (bool) $args['dry_run'];
+		$this->trigger             = sanitize_key( $args['trigger'] );
+		$this->deadline            = ( (int) $args['budget'] > 0 ) ? microtime( true ) + (int) $args['budget'] : 0.0;
+		$this->stopped             = false;
+		$this->record_budget       = null;
+		$this->record_budget_total = 0;
+		$this->records             = null;
 
 		$summary = array(
 			'ok'      => true,
@@ -149,6 +175,10 @@ class JOAWPJM_Importer {
 			return $summary;
 		}
 
+		// The per-run share of the key's monthly record allowance (null = no metered allowance known).
+		$this->record_budget       = $this->run_budget( $this->trigger );
+		$this->record_budget_total = (int) $this->record_budget;
+
 		try {
 			$page_size = $this->page_size( $summary );
 			if ( $page_size > 0 ) {
@@ -164,6 +194,7 @@ class JOAWPJM_Importer {
 			}
 		} finally {
 			if ( ! $this->dry_run ) {
+				$this->save_records_state();
 				self::release_lock();
 			}
 		}
@@ -220,6 +251,7 @@ class JOAWPJM_Importer {
 		$me = get_transient( JOAWPJM_Settings::ME_TRANSIENT );
 		if ( ! is_array( $me ) ) {
 			$result = $this->api->me();
+			$this->remember_records( $result );
 			if ( ! $result['ok'] ) {
 				$entry                = self::new_entry( __( 'Connection check', 'job-opportunities-api-for-wp-job-manager' ), '', $this->trigger );
 				$entry['errors'][]    = $this->handle_error( $result, __( 'Key check', 'job-opportunities-api-for-wp-job-manager' ) );
@@ -289,14 +321,26 @@ class JOAWPJM_Importer {
 		$cursor    = '';
 		$started   = time();
 		$ok        = true;
+		// True when the run's record budget stopped the search before any request:
+		// the search did not actually run, so its incremental window must not move.
+		$budget_stopped = false;
 
 		while ( $remaining > 0 ) {
 			if ( $this->out_of_time() ) {
 				$entry['notes'][] = __( 'Time budget reached; the next run continues.', 'job-opportunities-api-for-wp-job-manager' );
 				break;
 			}
-			$params          = $query;
-			$params['limit'] = min( $remaining, $page_size );
+			if ( null !== $this->record_budget && $this->record_budget <= 0 ) {
+				$budget_stopped = true;
+				$this->pacing_note( $entry );
+				break;
+			}
+			$params = $query;
+			$limit  = min( $remaining, $page_size );
+			if ( null !== $this->record_budget ) {
+				$limit = min( $limit, $this->record_budget );
+			}
+			$params['limit'] = $limit;
 			if ( '' !== $cursor ) {
 				$params['cursor'] = $cursor;
 			}
@@ -304,12 +348,14 @@ class JOAWPJM_Importer {
 			if ( ! $result['ok'] ) {
 				$entry['errors'][] = $this->handle_error( $result, __( 'Job search', 'job-opportunities-api-for-wp-job-manager' ) );
 				$ok                = false;
+				$this->spend_records( $result, 0 );
 				break;
 			}
 			$rows              = ( isset( $result['data']['data'] ) && is_array( $result['data']['data'] ) ) ? $result['data']['data'] : array();
 			$entry['fetched'] += count( $rows );
 			$this->process_rows( $rows, $search, $entry );
 			$remaining -= count( $rows );
+			$this->spend_records( $result, count( $rows ) );
 
 			$cursor = isset( $result['data']['next_cursor'] ) ? (string) $result['data']['next_cursor'] : '';
 			if ( empty( $rows ) || empty( $result['data']['has_more'] ) || '' === $cursor ) {
@@ -317,7 +363,7 @@ class JOAWPJM_Importer {
 			}
 		}
 
-		if ( $ok && ! $this->dry_run ) {
+		if ( $ok && ! $budget_stopped && ! $this->dry_run ) {
 			$state = JOAWPJM_Settings::get_state();
 			$state['searches'][ $search['id'] ]['last_success'] = $started;
 			if ( empty( $state['expired_since'] ) ) {
@@ -779,6 +825,8 @@ class JOAWPJM_Importer {
 				break;
 			}
 			$result = $this->api->expired( $since, self::EXPIRED_PAGE );
+			// The closure feed is not part of the record budget; just remember its allowance headers.
+			$this->remember_records( $result );
 			if ( ! $result['ok'] ) {
 				if ( 403 === $result['code'] ) {
 					return 'unavailable';
@@ -853,11 +901,16 @@ class JOAWPJM_Importer {
 			if ( $this->stopped || $this->out_of_time() ) {
 				break;
 			}
+			if ( null !== $this->record_budget && $this->record_budget <= 0 ) {
+				$this->pacing_note( $entry );
+				break;
+			}
 			$jid = (string) get_post_meta( $post_id, '_joawpjm_id', true );
 			if ( '' === $jid ) {
 				continue;
 			}
 			$result = $this->api->job( $jid );
+			$this->spend_records( $result, $result['ok'] ? 1 : 0 );
 			++$entry['fetched'];
 			if ( $result['ok'] ) {
 				$job = ( isset( $result['data']['data'] ) && is_array( $result['data']['data'] ) ) ? $result['data']['data'] : array();
@@ -975,6 +1028,113 @@ class JOAWPJM_Importer {
 	 */
 	private function out_of_time() {
 		return $this->deadline > 0 && microtime( true ) >= $this->deadline;
+	}
+
+	/**
+	 * This run's share of the key's monthly record allowance, from the last
+	 * allowance the API reported (run state "records").
+	 *
+	 * No budget (null) when the allowance is unknown, the key is unmetered,
+	 * or the monthly period already reset. A run started by hand (Run import
+	 * now, WP-CLI) may use everything that is left; a scheduled run gets an
+	 * equal share of what is left across the remaining runs of the period.
+	 *
+	 * @param string $trigger Run trigger (cron|manual|cli).
+	 * @return int|null
+	 */
+	private function run_budget( $trigger ) {
+		$state   = JOAWPJM_Settings::get_state();
+		$records = ( isset( $state['records'] ) && is_array( $state['records'] ) ) ? $state['records'] : null;
+		if ( ! is_array( $records ) || ! isset( $records['limit'] ) || -1 === (int) $records['limit'] ) {
+			return null; // No allowance known yet, or an unmetered key.
+		}
+		$remaining = ( isset( $records['remaining'] ) && is_numeric( $records['remaining'] ) ) ? (int) $records['remaining'] : null;
+		if ( null === $remaining ) {
+			return null;
+		}
+		$reset = ( isset( $records['reset'] ) && is_numeric( $records['reset'] ) ) ? (int) $records['reset'] : 0;
+		if ( $reset <= time() ) {
+			return null; // A new monthly period starts: pace from the fresh numbers.
+		}
+		if ( 'cron' !== $trigger ) {
+			return max( 0, $remaining );
+		}
+		$intervals = array(
+			'hourly'     => HOUR_IN_SECONDS,
+			'twicedaily' => 12 * HOUR_IN_SECONDS,
+			'daily'      => DAY_IN_SECONDS,
+		);
+		$schedule  = (string) JOAWPJM_Settings::get( 'schedule' );
+		$interval  = isset( $intervals[ $schedule ] ) ? $intervals[ $schedule ] : 12 * HOUR_IN_SECONDS;
+		$runs_left = max( 1, (int) ceil( ( $reset - time() ) / $interval ) );
+		return (int) floor( $remaining / $runs_left );
+	}
+
+	/**
+	 * Adds the one log note for a loop that reached the run's record budget.
+	 *
+	 * @param array $entry Log entry.
+	 * @return void
+	 */
+	private function pacing_note( array &$entry ) {
+		$reset = ( is_array( $this->records ) && isset( $this->records['reset'] ) && (int) $this->records['reset'] > 0 ) ? (int) $this->records['reset'] : 0;
+		if ( $reset > 0 ) {
+			$entry['notes'][] = sprintf(
+				/* translators: 1: records available to this run, 2: date and time the monthly record allowance resets. */
+				__( 'Pacing this key’s monthly record allowance: %1$d records were available to this run and they are used. The allowance resets on %2$s.', 'job-opportunities-api-for-wp-job-manager' ),
+				$this->record_budget_total,
+				date_i18n( 'Y-m-d H:i', $reset )
+			);
+		} else {
+			$entry['notes'][] = sprintf(
+				/* translators: %d: records available to this run. */
+				__( 'Pacing this key’s monthly record allowance: %d records were available to this run and they are used.', 'job-opportunities-api-for-wp-job-manager' ),
+				$this->record_budget_total
+			);
+		}
+	}
+
+	/**
+	 * Remembers the latest allowance reported by an API response and, when a
+	 * record budget applies, spends the rows the response actually returned.
+	 *
+	 * @param array $result Result of JOAWPJM_API::request().
+	 * @param int   $rows   Rows the response returned.
+	 * @return void
+	 */
+	private function spend_records( array $result, $rows ) {
+		$this->remember_records( $result );
+		if ( null !== $this->record_budget ) {
+			$this->record_budget = max( 0, $this->record_budget - max( 0, (int) $rows ) );
+		}
+	}
+
+	/**
+	 * Remembers the latest allowance reported by an API response.
+	 *
+	 * @param array $result Result of JOAWPJM_API::request().
+	 * @return void
+	 */
+	private function remember_records( array $result ) {
+		if ( isset( $result['records'] ) && is_array( $result['records'] ) ) {
+			$this->records = $result['records'];
+		}
+	}
+
+	/**
+	 * Saves the latest known record allowance into the run state, for the
+	 * next run's budget and the settings page.
+	 *
+	 * @return void
+	 */
+	private function save_records_state() {
+		if ( ! is_array( $this->records ) ) {
+			return;
+		}
+		// Re-read the state: the searches saved their last success during the run.
+		$state            = JOAWPJM_Settings::get_state();
+		$state['records'] = $this->records;
+		JOAWPJM_Settings::update_state( $state );
 	}
 
 	/**

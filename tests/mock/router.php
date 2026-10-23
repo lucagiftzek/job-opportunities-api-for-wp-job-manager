@@ -13,6 +13,10 @@
  *   closed        [ id, ... ]  -> /v1/jobs/{id} answers status=closed
  *   gone          [ id, ... ]  -> /v1/jobs/{id} answers 404
  *   withdrawn     [ id, ... ]  -> /v1/jobs/{id} answers 410
+ *   records       "unlimited", { limit, remaining, reset } or absent (no headers).
+ *                 When an object, the metered responses carry
+ *                 X-RateLimit-Records-Limit/-Used/-Remaining/-Reset and
+ *                 "remaining" decreases by every job row served (persisted here).
  */
 
 const TEST_KEY = 'test-key-123';
@@ -45,6 +49,36 @@ function out( $code, $body, $headers = array() ) {
 	}
 	echo json_encode( $body );
 	exit;
+}
+
+/**
+ * The X-RateLimit-Records-* headers for a metered response, following the
+ * "records" scenario key. $spent rows decrease "remaining" (persisted to
+ * scenario.json so the next request reflects this one).
+ */
+function record_headers( $scenario, $spent = 0 ) {
+	if ( ! isset( $scenario['records'] ) ) {
+		return array();
+	}
+	if ( 'unlimited' === $scenario['records'] ) {
+		return array( 'X-RateLimit-Records-Limit' => 'unlimited' );
+	}
+	if ( ! is_array( $scenario['records'] ) || ! isset( $scenario['records']['limit'] ) ) {
+		return array();
+	}
+	if ( $spent > 0 && isset( $scenario['records']['remaining'] ) && is_numeric( $scenario['records']['remaining'] ) ) {
+		$scenario['records']['remaining'] = max( 0, (int) $scenario['records']['remaining'] - (int) $spent );
+		@file_put_contents( __DIR__ . '/state/scenario.json', json_encode( $scenario, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	}
+	$headers = array( 'X-RateLimit-Records-Limit' => (string) (int) $scenario['records']['limit'] );
+	if ( isset( $scenario['records']['remaining'] ) && is_numeric( $scenario['records']['remaining'] ) ) {
+		$headers['X-RateLimit-Records-Used']      = (string) max( 0, (int) $scenario['records']['limit'] - (int) $scenario['records']['remaining'] );
+		$headers['X-RateLimit-Records-Remaining'] = (string) (int) $scenario['records']['remaining'];
+	}
+	if ( isset( $scenario['records']['reset'] ) && is_numeric( $scenario['records']['reset'] ) ) {
+		$headers['X-RateLimit-Records-Reset'] = (string) (int) $scenario['records']['reset'];
+	}
+	return $headers;
 }
 
 function all_jobs( $scenario ) {
@@ -83,7 +117,8 @@ if ( '/v1/me' === $path ) {
 			'usage_today'       => 7,
 			'created'           => '2026-01-01',
 			'renews_or_expires' => null,
-		)
+		),
+		record_headers( $scenario )
 	);
 }
 
@@ -106,7 +141,8 @@ if ( '/v1/jobs' === $path ) {
 			'data'        => $page,
 			'has_more'    => $next < count( $list ),
 			'next_cursor' => $next < count( $list ) ? (string) $next : null,
-		)
+		),
+		record_headers( $scenario, count( $page ) )
 	);
 }
 
@@ -137,17 +173,18 @@ if ( '/v1/jobs/expired' === $path ) {
 			'data'       => $rows,
 			'next_since' => $rows ? 'seq:' . $max : $since,
 			'count'      => count( $rows ),
-		)
+		),
+		record_headers( $scenario, count( $rows ) )
 	);
 }
 
 if ( preg_match( '#^/v1/jobs/([^/]+)$#', $path, $m ) ) {
 	$id = urldecode( $m[1] );
 	if ( in_array( $id, (array) ( isset( $scenario['gone'] ) ? $scenario['gone'] : array() ), true ) ) {
-		out( 404, array( 'error' => 'not_found', 'message' => 'No such row.' ) );
+		out( 404, array( 'error' => 'not_found', 'message' => 'No such row.' ), record_headers( $scenario ) );
 	}
 	if ( in_array( $id, (array) ( isset( $scenario['withdrawn'] ) ? $scenario['withdrawn'] : array() ), true ) ) {
-		out( 410, array( 'error' => 'gone', 'message' => 'The employer withdrew this listing.' ) );
+		out( 410, array( 'error' => 'gone', 'message' => 'The employer withdrew this listing.' ), record_headers( $scenario ) );
 	}
 	$jobs = all_jobs( $scenario );
 	$job  = isset( $jobs[ $id ] ) ? $jobs[ $id ] : array(
@@ -168,7 +205,8 @@ if ( preg_match( '#^/v1/jobs/([^/]+)$#', $path, $m ) ) {
 		array(
 			'data'        => $job,
 			'description' => $desc,
-		)
+		),
+		record_headers( $scenario, 1 )
 	);
 }
 
