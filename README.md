@@ -24,7 +24,7 @@ free key (no card required): https://jobopportunitiesapi.org/register
 ## Install
 
 1. Install and activate WP Job Manager.
-2. Upload `dist/job-opportunities-api-for-wp-job-manager-1.0.1.zip` (Plugins > Add New > Upload) and activate.
+2. Upload `dist/job-opportunities-api-for-wp-job-manager-<version>.zip` (Plugins > Add New > Upload) and activate.
 3. Job Listings > JOA Import: save your API key, click **Test connection**, add a saved search, **Run import now**.
 
 ## Repository layout
@@ -36,7 +36,8 @@ free key (no card required): https://jobopportunitiesapi.org/register
 | `docker-compose.yml` | local test site (project `joawp`, 127.0.0.1:8088 only) |
 | `phpcs.xml.dist` | WordPress Coding Standards config |
 | `wporg-assets/` | wordpress.org icons, banners and screenshots |
-| `dist/` | the release zip |
+| `dist/` | the release zip, built by `python3 tools/build-zip.py` from the committed plugin folder (deterministic: 0755/0644, dated at the commit) |
+| `tools/build-zip.py` | the release zip builder; refuses uncommitted changes and mismatched version strings |
 
 ## Run the tests
 
