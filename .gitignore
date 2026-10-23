@@ -4,6 +4,7 @@ vendor/
 node_modules/
 tests/mock/state/*.json
 tests/mock/state/*.log
+tests/__pycache__/
 *.env
 .done
 REPORT.md

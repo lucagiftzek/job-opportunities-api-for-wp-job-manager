@@ -47,6 +47,7 @@ J4=00000000-0000-4000-8000-000000000004
 J5=00000000-0000-4000-8000-000000000005
 J6=00000000-0000-4000-8000-000000000006
 J7=00000000-0000-4000-8000-000000000007
+J10=00000000-0000-4000-8000-0000000000010
 
 echo "== setup"
 docker compose exec -T cli sh -c 'echo http://mock:8000 > /var/www/html/wp-content/joawpjm-test-api-base.txt'
@@ -66,9 +67,10 @@ eq "5 imported listings exist" "5" "$(h count)"
 eq "paged with plan max_page_size (3): 2 job requests" "2" "$(reqs /v1/jobs)"
 has "page size clamped to max_page_size" '"limit":"3"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
 has "second page uses cursor" '"cursor":"3"' "$(cat $STATE/requests.log)"
-has "user agent JOA-WPJM/<version>" '"ua":"JOA-WPJM/1.0.2"' "$(cat $STATE/requests.log)"
+has "user agent JOA-WPJM/<version>" '"ua":"JOA-WPJM/1.0.3"' "$(cat $STATE/requests.log)"
 has "descriptions requested" '"include_description":"true"' "$(cat $STATE/requests.log)"
 hasnt "first run sends no posted_after" 'posted_after' "$(cat $STATE/requests.log)"
+hasnt "first run sends no listed_after (initial window)" 'listed_after' "$(cat $STATE/requests.log)"
 P1=$(h pid $J1); P2=$(h pid $J2); P3=$(h pid $J3); P4=$(h pid $J4); P5=$(h pid $J5)
 eq "title" "Senior Backend Engineer" "$(field $P1 post_title)"
 eq "post status publish (default)" "publish" "$(field $P1 post_status)"
@@ -113,12 +115,18 @@ eq "canonical stored" "https://erioun.example/roles/5" "$(meta $P5 _joawpjm_cano
 eq "closure feed polled after import" "1" "$(reqs /v1/jobs/expired)"
 
 echo "== 2. second import creates no duplicates and is incremental"
+# 1.0.3: the incremental window is listed_after = previous run START - 10 min (the
+# posted_after = last run - 1 day assertion is replaced; see section 20). The
+# watermark is the previous run's start, captured before this run advances it.
+PREV_LA=$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["last_success"])')
 reqs_reset
 wp joawpjm import >/dev/null
 eq "0 created on re-import" "0" "$(h entry 'Main search' created)"
 eq "5 unchanged" "5" "$(h entry 'Main search' unchanged)"
 eq "still 5 listings" "5" "$(h count)"
-has "posted_after = last run - 1 day" '"posted_after":"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
+LA=$(python3 -c "import datetime; print(datetime.datetime.fromtimestamp($PREV_LA-600, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+has "listed_after = previous run start - 10 min" '"listed_after":"'$LA'"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
+hasnt "no posted_after on incremental runs" 'posted_after' "$(cat $STATE/requests.log)"
 eq "/v1/me cached (not called again)" "0" "$(reqs /v1/me)"
 
 echo "== 3. changed title updates the listing"
@@ -519,6 +527,109 @@ reqs_reset
 wp cron event run joawpjm_cron_import >/dev/null
 eq "reset in the past: run not capped" "8" "$(h entry 'Pacing search' created)"
 hasnt "reset in the past: no pacing note" "Pacing" "$(h entry 'Pacing search' notes)"
+
+echo "== 20. incremental runs poll listed_after (jobs new to the API), not posted_after"
+# Clean slate: no searches, no listings, no run state, no cached /v1/me.
+h reset >/dev/null
+h search main '{"label":"Main search","job_type":"auto","max_per_run":50}' >/dev/null
+
+# (d) The first run ever keeps the initial-window behaviour: no listed_after,
+# no posted_after, it imports the API's current newest jobs.
+scen --jobs default=J1,J2,J3 --feed 1
+reqs_reset
+wp joawpjm import >/dev/null
+eq "first run creates the fixture jobs" "3" "$(h entry 'Main search' created)"
+hasnt "first run: no listed_after" 'listed_after' "$(cat $STATE/requests.log)"
+hasnt "first run: no posted_after" 'posted_after' "$(cat $STATE/requests.log)"
+T1=$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["last_success"])')
+NOW=$(date +%s)
+if [ -n "$T1" ] && [ "$T1" -ge $((NOW-300)) ] && [ "$T1" -le $((NOW+300)) ]; then ok "run start stored as the watermark (recent unix ts)"; else bad "run start stored as the watermark (recent unix ts)" "ts near now" "$T1 (now $NOW)"; fi
+eq "tight-window marker stored" "1" "$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["listed_ok"])')"
+
+# (a)+(b)+(c) The next run sends listed_after = previous run start - 10 min and no
+# posted_after; a job posted 30 days ago but new to the API is imported (the
+# regression this release fixes); overlap jobs are matched, not duplicated.
+OLD_POSTED=$(python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
+scen --jobs default=J1,J2,J3,J10 --feed 1 --set "J10.posted_at=$OLD_POSTED"
+reqs_reset
+LA=$(python3 -c "import datetime; print(datetime.datetime.fromtimestamp($T1-600, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+wp joawpjm import >/dev/null
+has "incremental run: listed_after = previous run start - 10 min" '"listed_after":"'$LA'"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
+hasnt "incremental run: no posted_after" 'posted_after' "$(cat $STATE/requests.log)"
+eq "job posted 30 days ago but new to the API is imported" "1" "$(h entry 'Main search' created)"
+P10=$(h pid $J10)
+eq "post date still taken from posted_at" "$(echo "$OLD_POSTED" | sed 's/T/ /;s/Z//')" "$(field $P10 post_date)"
+eq "overlap jobs re-returned but not duplicated" "3" "$(h entry 'Main search' unchanged)"
+eq "4 listings in total" "4" "$(h count)"
+
+# (d again) A search added later: its first run keeps the initial-window behaviour
+# even while the established search polls listed_after in the same run.
+h search later '{"label":"Later search","q":"later"}' >/dev/null
+scen --jobs default=J1,J2,J3,J10 later=J1,J2 --feed 1
+reqs_reset
+wp joawpjm import >/dev/null
+has "established search still polls listed_after" '"listed_after":"' "$(grep '/v1/jobs"' $STATE/requests.log | grep -v '"q":"later"')"
+LATER_REQ=$(grep '"q":"later"' $STATE/requests.log)
+hasnt "search added later: first run sends no listed_after" 'listed_after' "$LATER_REQ"
+hasnt "search added later: first run sends no posted_after" 'posted_after' "$LATER_REQ"
+eq "search added later: overlap rows not duplicated" "0" "$(h entry 'Later search' created)"
+eq "search added later: overlap rows unchanged" "2" "$(h entry 'Later search' unchanged)"
+eq "still 4 listings" "4" "$(h count)"
+
+# A run stopped by the record budget before any request does not move the watermark.
+R10=$(( $(date +%s) + 10 * 86400 ))
+PREV_WM=$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["last_success"])')
+h setrecords "{\"limit\":1000,\"remaining\":0,\"reset\":$R10}" >/dev/null
+scen --jobs default=J1,J2,J3,J10 --feed 1 --records limit=1000,remaining=0 --records-reset $R10
+reqs_reset
+wp joawpjm import >/dev/null
+eq "budget-stopped run: no job search requests" "0" "$(reqs /v1/jobs)"
+has "budget-stopped run: pacing note logged" "monthly record allowance: 0 records were available to this run" "$(h entry 'Main search' notes)"
+eq "budget-stopped run: watermark not moved" "$PREV_WM" "$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["last_success"])')"
+eq "budget-stopped run: tight-window marker kept" "1" "$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["listed_ok"])')"
+
+# A window with more new jobs than "Max jobs per run" is paginated as far as the
+# limit allows and the truncation is logged, not silent.
+h reset >/dev/null
+h search cap '{"label":"Capped search","q":"cap","max_per_run":4}' >/dev/null
+scen --jobs cap=G1,G2,G3,G4,G5,G6,G7,G8 --feed 1
+reqs_reset
+wp joawpjm import >/dev/null
+eq "capped run imports up to max_per_run" "4" "$(h entry 'Capped search' created)"
+eq "capped run paginated past the first page" "2" "$(reqs /v1/jobs)"
+has "capped run logs the truncation" "maximum jobs per run" "$(h entry 'Capped search' notes)"
+
+# (e) Upgrade path: state written by 1.0.2 (last_success per search, no listed_ok
+# marker) is read correctly by 1.0.3. The first run after the upgrade looks one
+# day back (a safe superset of the 1.0.2 window); later runs use the 10-minute window.
+h reset >/dev/null
+h search main '{"label":"Main search","job_type":"auto","max_per_run":50}' >/dev/null
+T2=$(( $(date +%s) - 60 ))   # the previous (1.0.2) successful run started a minute ago
+EXPIRED_SINCE=$(python3 -c "import datetime; print(datetime.datetime.fromtimestamp($T2, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+h setstate "{\"searches\":{\"main\":{\"last_success\":$T2}},\"expired_since\":\"$EXPIRED_SINCE\",\"records\":{\"limit\":1000,\"remaining\":500,\"reset\":$R10}}" >/dev/null
+scen --jobs default=J1,J2 --feed 1
+reqs_reset
+LA2=$(python3 -c "import datetime; print(datetime.datetime.fromtimestamp($T2-86400, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+wp joawpjm import >/dev/null
+has "upgrade run: listed_after = last 1.0.2 success - 1 day (migration window)" '"listed_after":"'$LA2'"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
+hasnt "upgrade run: no posted_after" 'posted_after' "$(cat $STATE/requests.log)"
+has "closure feed uses the 1.0.2 cursor" '"since":"'$EXPIRED_SINCE'"' "$(grep 'expired' $STATE/requests.log | head -1)"
+eq "upgrade run imports the jobs" "2" "$(h entry 'Main search' created)"
+T3=$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["last_success"])')
+eq "upgrade run recorded the tight-window marker" "1" "$(h state | python3 -c 'import json,sys; print(json.load(sys.stdin)["searches"]["main"]["listed_ok"])')"
+scen --jobs default=J1,J2,J3 --feed 1
+reqs_reset
+LA3=$(python3 -c "import datetime; print(datetime.datetime.fromtimestamp($T3-600, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+wp joawpjm import >/dev/null
+has "post-upgrade run: listed_after = previous run start - 10 min" '"listed_after":"'$LA3'"' "$(grep '/v1/jobs"' $STATE/requests.log | head -1)"
+eq "post-upgrade run: new job J3 created" "1" "$(h entry 'Main search' created)"
+eq "post-upgrade run: overlap not duplicated" "2" "$(h entry 'Main search' unchanged)"
+eq "3 listings in total" "3" "$(h count)"
+
+# The mock, like the real API, answers 422 bad_listed_after for a non-timestamp.
+OUT=$(php '$r = wp_remote_get( JOAWPJM_API::base_url() . "/v1/jobs?listed_after=garbage", array( "headers" => array( "Authorization" => "Bearer test-key-123" ) ) ); echo (int) wp_remote_retrieve_response_code( $r ) . " " . (string) wp_remote_retrieve_body( $r );')
+eq "garbage listed_after answers 422" "422" "$(echo "$OUT" | cut -d' ' -f1)"
+has "garbage listed_after: bad_listed_after error" 'bad_listed_after' "$OUT"
 
 echo
 echo "RESULT: $PASS passed, $FAIL failed"

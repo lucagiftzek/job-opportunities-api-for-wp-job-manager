@@ -277,7 +277,9 @@ class JOAWPJM_Settings {
 	}
 
 	/**
-	 * Run state: per-search last success time and the closure feed cursor.
+	 * Run state: per-search last success (the start time of the previous
+	 * successful run, used as the listed_after watermark; listed_ok marks that
+	 * the run polled listed_after) and the closure feed cursor.
 	 *
 	 * @return array
 	 */

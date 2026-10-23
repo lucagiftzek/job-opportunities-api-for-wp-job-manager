@@ -8,6 +8,11 @@
  * Scenario keys:
  *   mode          normal | 401 | 429 | 500
  *   jobs          { "<q value or _default>": [ Job, ... ] }
+ *                 Each job may carry a "listed_at" RFC 3339 time: the moment the
+ *                 row reached the API. /v1/jobs?listed_after=<t> only returns
+ *                 rows with listed_at strictly after <t> (a job without
+ *                 listed_at is treated as listed right now). A value that is not
+ *                 a timestamp answers 422 bad_listed_after, like the real API.
  *   feed          true when the "plan" includes /v1/jobs/expired, else 403
  *   expired       [ { seq, id, closed_reason } ]  (cursor = "seq:<n>")
  *   closed        [ id, ... ]  -> /v1/jobs/{id} answers status=closed
@@ -125,6 +130,21 @@ if ( '/v1/me' === $path ) {
 if ( '/v1/jobs' === $path ) {
 	$key   = ( isset( $query['q'] ) && isset( $scenario['jobs'][ $query['q'] ] ) ) ? $query['q'] : '_default';
 	$list  = isset( $scenario['jobs'][ $key ] ) ? array_values( $scenario['jobs'][ $key ] ) : array();
+	if ( isset( $query['listed_after'] ) ) {
+		$after = strtotime( (string) $query['listed_after'] );
+		if ( ! $after ) {
+			out( 422, array( 'error' => 'bad_listed_after', 'message' => 'listed_after must be an RFC 3339 timestamp.' ) );
+		}
+		$now = time();
+		$list = array_values(
+			array_filter(
+				$list,
+				function ( $job ) use ( $after, $now ) {
+					return isset( $job['listed_at'] ) ? strtotime( (string) $job['listed_at'] ) > $after : $now > $after;
+				}
+			)
+		);
+	}
 	$limit = isset( $query['limit'] ) ? max( 1, min( 200, (int) $query['limit'] ) ) : 25;
 	$from  = isset( $query['cursor'] ) ? (int) $query['cursor'] : 0;
 	$page  = array_slice( $list, $from, $limit );

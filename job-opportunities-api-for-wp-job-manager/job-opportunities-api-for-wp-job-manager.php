@@ -3,7 +3,7 @@
  * Plugin Name:       Job Opportunities API for WP Job Manager
  * Plugin URI:        https://jobopportunitiesapi.org/integrations/wordpress
  * Description:       Imports employer-direct job postings from the Job Opportunities API (JOA) into WP Job Manager listings on a schedule.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 6.4
  * Requires PHP:      7.4
  * Requires Plugins:  wp-job-manager
@@ -19,7 +19,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'JOAWPJM_VERSION', '1.0.2' );
+define( 'JOAWPJM_VERSION', '1.0.3' );
 define( 'JOAWPJM_FILE', __FILE__ );
 define( 'JOAWPJM_DIR', plugin_dir_path( __FILE__ ) );
 define( 'JOAWPJM_URL', plugin_dir_url( __FILE__ ) );

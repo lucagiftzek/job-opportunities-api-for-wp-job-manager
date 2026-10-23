@@ -5,7 +5,7 @@ Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: wp-job-manager
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,7 +28,7 @@ If you show the imported jobs publicly, the Job Opportunities API terms ask for 
 * **No duplicates**: one listing per job, plus a second check on the employer's apply link so the same role found by two searches is imported once. A run lock prevents overlapping imports.
 * **Automatic expiry**: when the employer closes a role, the listing is set to "Expired". Plans with the closure feed use it; other plans re-check a configurable number of listings per run.
 * **Keep your edits**: lock any imported listing to stop updates from the API (a locked listing still expires when the role closes).
-* **Quota-friendly**: after the first run, each search only asks for recently posted jobs, page sizes follow your plan's limits, and the plugin paces itself against your key's monthly record allowance so a free key lasts the whole month.
+* **Quota-friendly**: after the first run, each search only asks for jobs that are new to the API since the last successful run, page sizes follow your plan's limits, and the plugin paces itself against your key's monthly record allowance so a free key lasts the whole month.
 * **Activity log** of the last 50 runs, with counts and errors.
 * **The data credit, on your terms**: one tick adds a small "Data: Job Opportunities API" line, linking to jobopportunitiesapi.org, under the description of each imported listing. It is off until you switch it on, and a notice on the plugin's screens and the WP Job Manager listing screens (never site-wide) reminds administrators to decide. Attribution lines that come with some roles' data are always shown.
 * **No images are downloaded** into your media library, nothing is tracked, and no remote scripts or styles are loaded.
@@ -49,7 +49,7 @@ This plugin connects to the **Job Opportunities API (JOA)**, a job-postings data
 
 All requests go to `https://api.jobopportunitiesapi.org`. The plugin makes them only:
 
-* when a scheduled import runs (WP-Cron) or an administrator clicks "Run import now" or runs `wp joawpjm import`: the plugin sends your API key and the filters of your saved searches (for example keywords, countries, remote preference, company slugs, and the date after which jobs were posted) and receives job postings;
+* when a scheduled import runs (WP-Cron) or an administrator clicks "Run import now" or runs `wp joawpjm import`: the plugin sends your API key and the filters of your saved searches (for example keywords, countries, remote preference, company slugs, and the time after which jobs were new to the API) and receives job postings;
 * to check whether imported roles are still open: it sends your API key and either a time cursor (closure feed) or the ids of imported jobs, and receives their status;
 * when an administrator clicks "Test connection" (and at most every 12 hours during imports): it sends your API key and receives your plan, limits and today's usage.
 
@@ -74,7 +74,7 @@ WP-Cron runs when your site gets visits. On low-traffic sites, set up a real cro
 
 = Do I need a paid plan? =
 
-No. The plugin works with a free key (no card required). Be aware that every job the API returns counts towards your key's monthly record allowance, and the free Explore plan allows 1,000 records a month. To make that allowance last, the plugin paces itself: it reads the key's remaining records from the API's responses, and each scheduled run is limited to an equal share of what is left until the allowance resets, so a free key's 1,000 records stretch across the whole month instead of being used up in the first week. A run you start by hand ("Run import now" or WP-CLI) may use everything that is still left. When a run's share is used up, it stops and the activity log says so. The plugin only asks for recently posted jobs after the first run, and plans with the closure feed check for closed roles with a time cursor instead of one request per listing.
+No. The plugin works with a free key (no card required). Be aware that every job the API returns counts towards your key's monthly record allowance, and the free Explore plan allows 1,000 records a month. To make that allowance last, the plugin paces itself: it reads the key's remaining records from the API's responses, and each scheduled run is limited to an equal share of what is left until the allowance resets, so a free key's 1,000 records stretch across the whole month instead of being used up in the first week. A run you start by hand ("Run import now" or WP-CLI) may use everything that is still left. When a run's share is used up, it stops and the activity log says so. The plugin only asks for jobs that are new to the API since the last run after the first run, and plans with the closure feed check for closed roles with a time cursor instead of one request per listing.
 
 = Where do applicants apply? =
 
@@ -83,6 +83,10 @@ On the employer's own site: the listing's application link is the employer's app
 = Will the same job be imported twice? =
 
 No. Each listing remembers the job's id, and a second check on the employer's apply link stops the same role arriving from two searches. Overlapping runs are prevented by a lock.
+
+= When do I get new jobs? =
+
+The first run imports the newest jobs matching each saved search. After that, each import picks up jobs that are new to the Job Opportunities API since the last successful run, so a job is imported as soon as it reaches the API, no matter how long ago the employer posted it (a job often reaches the API days, weeks or more after its posted date). Jobs already imported are matched, not duplicated.
 
 = What happens when a job closes? =
 
@@ -122,6 +126,12 @@ Yes, with the `joawpjm_api_base` filter or the `JOAWPJM_API_BASE` constant (usef
 
 == Changelog ==
 
+= 1.0.3 =
+* Fixed: incremental imports now ask for jobs that are NEW TO THE API since the last successful run (`listed_after`) instead of jobs posted within the last day (`posted_after`). `posted_at` is the employer's own date, and a job typically reaches the API long after it is posted (median about 31 hours, 75% within about 9 days, 90% within about 52 days; about 19% of jobs carry no `posted_at` at all), so with the old window a job was only imported after it happened to fall inside the day after the previous run. Such jobs are now imported as soon as they reach the API.
+* The watermark for the next run is the START of the previous successful run (with 10 minutes of slack), not its end time. A run stopped by the record allowance before any request does not move it.
+* The first run ever, and a search added later, keep the initial-window behaviour: they import the API's current newest jobs (up to "Max jobs per run").
+* Upgrading from 1.0.1 or 1.0.2: the stored run state is read as-is; the first run after the upgrade looks one day back (a superset of what the old window covered, already-imported jobs are de-duplicated), and runs after that use the tight window.
+
 = 1.0.2 =
 * New: the plugin paces a key's monthly record allowance so a free key (1,000 records a month on the free Explore plan) lasts the whole month. It reads the remaining records from the API's responses and limits each scheduled run to an equal share of what is left until the allowance resets; a run started by hand may use everything still left.
 * New: when the API reports an allowance, the settings page shows the key's remaining records and when the allowance resets.
@@ -136,6 +146,9 @@ Yes, with the `joawpjm_api_base` filter or the `JOAWPJM_API_BASE` constant (usef
 * First release: saved searches, scheduled and manual imports, WP-CLI, de-duplication, automatic expiry of closed roles, listing lock, activity log.
 
 == Upgrade Notice ==
+
+= 1.0.3 =
+Imports now pick up jobs as soon as they reach the Job Opportunities API, even if the employer posted them days or weeks earlier (or gave the job no posted date at all). Your imported listings are kept: the first run after upgrading looks one day back and de-duplicates everything you already have.
 
 = 1.0.2 =
 Scheduled imports now pace themselves to your key's remaining monthly record allowance, so a free key's allowance lasts the whole month instead of running out in the first week.

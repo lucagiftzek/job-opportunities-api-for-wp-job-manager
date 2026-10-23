@@ -134,6 +134,11 @@ switch ( $cmd ) {
 		echo 'ok';
 		break;
 
+	case 'setstate': // setstate <json>  (writes joawpjm_state exactly as an older version would have stored it)
+		update_option( 'joawpjm_state', json_decode( $args[1], true ), false );
+		echo 'ok';
+		break;
+
 	case 'records':
 		$state = JOAWPJM_Settings::get_state();
 		echo isset( $state['records'] ) ? wp_json_encode( $state['records'] ) : 'null';

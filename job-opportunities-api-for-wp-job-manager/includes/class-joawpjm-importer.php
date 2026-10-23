@@ -269,6 +269,10 @@ class JOAWPJM_Importer {
 	/**
 	 * Maps a saved search to /v1/jobs query parameters.
 	 *
+	 * An incremental window (listed_after) is added when the search has a last
+	 * successful run; the first run of a search carries no window and imports
+	 * the API's current newest jobs (up to max_per_run).
+	 *
 	 * @param array $search Saved search.
 	 * @param array $state  Run state of the search.
 	 * @return array
@@ -300,7 +304,30 @@ class JOAWPJM_Importer {
 		}
 		$query['include_description'] = JOAWPJM_Settings::get( 'keep_descriptions' ) ? 'true' : 'false';
 		if ( ! empty( $state['last_success'] ) ) {
-			$query['posted_after'] = gmdate( 'Y-m-d\TH:i:s\Z', (int) $state['last_success'] - DAY_IN_SECONDS );
+			/*
+			 * Incremental runs ask for jobs NEW TO THE API since the previous run
+			 * (listed_after), not jobs posted since then (posted_after): posted_at
+			 * is the employer's own date and a job reaches the API long after it is
+			 * posted (median ~31 hours, p75 ~9 days, p90 ~52 days; 19% of rows have
+			 * no posted_at at all), so a posted_after window misses most new jobs.
+			 * The watermark is the START of the previous successful run, stored as
+			 * last_success by import_search() before its first request, with 10
+			 * minutes of slack for rows still reaching the API (a row is published
+			 * within ~2 minutes of being committed).
+			 *
+			 * The very first run ever, or a search added later, has no
+			 * last_success and keeps the initial-window behaviour: no listed_after,
+			 * so the API's current newest jobs are imported (up to max_per_run).
+			 *
+			 * Upgrade from 1.0.1/1.0.2: their state stores only last_success (same
+			 * meaning: the start of the previous successful run). The first 1.0.3
+			 * run for such a search therefore looks one day back, a safe superset
+			 * of the 1.0.2 window, and de-duplication absorbs the overlap; it
+			 * records the listed_ok marker so every later run uses the 10-minute
+			 * window.
+			 */
+			$window = empty( $state['listed_ok'] ) ? DAY_IN_SECONDS : 10 * MINUTE_IN_SECONDS;
+			$query['listed_after'] = gmdate( 'Y-m-d\TH:i:s\Z', (int) $state['last_success'] - $window );
 		}
 		return $query;
 	}
@@ -324,6 +351,8 @@ class JOAWPJM_Importer {
 		// True when the run's record budget stopped the search before any request:
 		// the search did not actually run, so its incremental window must not move.
 		$budget_stopped = false;
+		// True when the last page said the window still had jobs left.
+		$more = false;
 
 		while ( $remaining > 0 ) {
 			if ( $this->out_of_time() ) {
@@ -358,14 +387,26 @@ class JOAWPJM_Importer {
 			$this->spend_records( $result, count( $rows ) );
 
 			$cursor = isset( $result['data']['next_cursor'] ) ? (string) $result['data']['next_cursor'] : '';
-			if ( empty( $rows ) || empty( $result['data']['has_more'] ) || '' === $cursor ) {
+			$more   = ! empty( $result['data']['has_more'] ) && '' !== $cursor;
+			if ( empty( $rows ) || ! $more ) {
 				break;
 			}
 		}
 
+		// The per-run job limit (max jobs per run) stopped the pagination while the
+		// window still had jobs; the time-budget and record-budget truncations
+		// already carry their own notes above.
+		if ( $remaining <= 0 && $more ) {
+			$entry['notes'][] = __( 'Reached the maximum jobs per run; some matching jobs were not imported this run.', 'job-opportunities-api-for-wp-job-manager' );
+		}
+
 		if ( $ok && ! $budget_stopped && ! $this->dry_run ) {
 			$state = JOAWPJM_Settings::get_state();
+			// $started is the run's START time (before its first request): it is the
+			// listed_after watermark the next run polls from, never the end time.
 			$state['searches'][ $search['id'] ]['last_success'] = $started;
+			// This run polled listed_after; the next window can be the tight one.
+			$state['searches'][ $search['id'] ]['listed_ok']    = 1;
 			if ( empty( $state['expired_since'] ) ) {
 				$state['expired_since'] = gmdate( 'Y-m-d\TH:i:s\Z', $started );
 			}

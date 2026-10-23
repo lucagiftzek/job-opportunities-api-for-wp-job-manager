@@ -6,7 +6,7 @@ Usage examples:
   scenario.py --jobs default=J5 --feed 0 --closed J2 --gone J4 --withdrawn J5
   scenario.py ... --set J2.title="Renamed role" --mode 429 --expired J1,J3
 """
-import argparse, json, os, re
+import argparse, json, os, re, time
 
 def job(n, **kw):
     base = {
@@ -21,6 +21,9 @@ def job(n, **kw):
         "remote": "on_site", "remote_inferred": False,
         "employment_type": "Full-time", "seniority": "Mid", "category": "Engineering",
         "posted_at": "2026-10-0%dT09:00:00Z" % n, "first_seen_at": "2026-10-0%dT09:05:00Z" % n,
+        # When the row reached the API (what listed_after filters on). Default:
+        # just now, i.e. the row is new to the API, like a row the tests add.
+        "listed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "status": "live", "closed_at": None, "closed_reason": None,
         "apply_url": "https://jobs.example.com/example-co-%d/%d" % (n, n),
         "source": "greenhouse", "source_type": "ats",
@@ -50,6 +53,9 @@ FIX = {
     "J6": job(6, title="Support Specialist", employment_type="Temporary"),
     # Same role as J1 (same employer apply link, written differently) under another JOA id.
     "J1DUP": job(7, title="Senior Backend Engineer (duplicate)", apply_url="https://www.jobs.example.com/acme/1/"),
+    # A role the employer posted long ago but that only now reached the API:
+    # listed_at defaults to "just now"; the tests may override posted_at.
+    "J10": job(10, title="Long-Standing Role", apply_url="https://jobs.example.com/example-co-10/10"),
 }
 
 def ids(csv):

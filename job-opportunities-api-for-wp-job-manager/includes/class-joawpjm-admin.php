@@ -549,7 +549,7 @@ class JOAWPJM_Admin {
 		echo '<tr><th scope="row">' . esc_html__( 'Salary', 'job-opportunities-api-for-wp-job-manager' ) . '</th><td><label><input type="checkbox" name="search[has_salary]" value="1"' . checked( $search['has_salary'], 1, false ) . '> ' . esc_html__( 'Only jobs that state a salary', 'job-opportunities-api-for-wp-job-manager' ) . '</label></td></tr>';
 
 		echo '<tr><th scope="row"><label for="joawpjm-max">' . esc_html__( 'Max jobs per run', 'job-opportunities-api-for-wp-job-manager' ) . '</label></th><td><input type="number" min="1" max="500" id="joawpjm-max" name="search[max_per_run]" value="' . esc_attr( (string) (int) $search['max_per_run'] ) . '" class="small-text">';
-		echo '<p class="description">' . esc_html__( 'Each returned job counts towards your plan’s monthly record allowance. After the first run only recently posted jobs are requested.', 'job-opportunities-api-for-wp-job-manager' ) . '</p></td></tr>';
+		echo '<p class="description">' . esc_html__( 'Each returned job counts towards your plan’s monthly record allowance. After the first run only jobs that are new to the API since the last successful run are requested.', 'job-opportunities-api-for-wp-job-manager' ) . '</p></td></tr>';
 
 		echo '<tr class="joawpjm-section"><th colspan="2"><h3>' . esc_html__( 'How listings are created', 'job-opportunities-api-for-wp-job-manager' ) . '</h3></th></tr>';
 
